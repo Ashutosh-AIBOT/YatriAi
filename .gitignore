@@ -1,0 +1,12 @@
+node_modules/
+.env
+*.pem
+*secret*
+target/
+__pycache__/
+.venv/
+*.pyc
+.idea/
+.vscode/
+dist/
+build/
