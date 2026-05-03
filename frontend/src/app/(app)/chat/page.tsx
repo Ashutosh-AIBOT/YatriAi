@@ -77,7 +77,8 @@ export default function ChatPage() {
       const response = await api.post('/chat', { 
         message: message || 'plan_trip', 
         session_id: sessionId,
-        action: action || undefined
+        action: action || undefined,
+        user_prefs: { notes: typeof window !== 'undefined' ? localStorage.getItem('yatri_user_prefs') || '' : '' }
       });
       
       const reply = {
@@ -100,7 +101,7 @@ export default function ChatPage() {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'I\'m having trouble connecting right now. Please make sure the backend is running on port 8001.',
+        content: 'Our systems are experiencing a brief delay. Please try again in a moment.',
         type: 'text'
       }]);
     } finally {
@@ -113,14 +114,7 @@ export default function ChatPage() {
   const handlePlanTrip = () => {
     setChatMode('planning');
     setSidebarView('agents');
-    const planMsg = { 
-      id: Date.now().toString(), 
-      role: 'user', 
-      content: '🗺️ I want to plan a trip!', 
-      type: 'text' 
-    };
-    setMessages(prev => [...prev, planMsg]);
-    sendMessage('I want to plan a trip', 'plan_trip');
+    sendMessage('🗺️ I want to plan a trip!', 'plan_trip');
   };
 
   const collectedEntries = Object.entries(collectedInfo).filter(([_, v]) => v !== null && v !== undefined);
@@ -177,70 +171,83 @@ export default function ChatPage() {
 
         {/* Sidebar Content */}
         <div className="flex-1 p-5 overflow-y-auto">
-          {/* AGENTS VIEW */}
-          {sidebarView === 'agents' && chatMode === 'planning' && (
+          {/* AGENTS & DETAILS VIEW */}
+          {sidebarView === 'agents' && (
             <>
-              <p className="clay-label mb-4">
-                {collectedEntries.length > 0 ? 'TRIP DETAILS' : 'PLANNING MODE'}
-              </p>
-              {collectedEntries.length > 0 ? (
-                <div className="space-y-2">
-                  {collectedEntries.map(([key, value]) => (
-                    <div 
-                      key={key} 
-                      className="p-3 rounded-xl flex items-start gap-3 animate-fade-in"
-                      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}
-                    >
-                      <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--accent-primary)' }} />
-                      <div>
-                        <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-                          {INFO_LABELS[key] || key}
-                        </p>
-                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)', letterSpacing: '-0.2px' }}>
-                          {Array.isArray(value) ? value.join(', ') : 
-                           typeof value === 'boolean' ? (value ? 'Yes' : 'No') :
-                           typeof value === 'number' ? (key === 'total_budget' ? `₹${value.toLocaleString()}` : String(value)) :
-                           String(value)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <MessageCircle className="h-8 w-8 mx-auto mb-3" style={{ color: 'var(--text-faint)' }} />
-                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    Tell me about your trip and I'll collect the details!
+              {chatMode === 'planning' && (
+                <div className="mb-6">
+                  <p className="clay-label mb-3">
+                    {collectedEntries.length > 0 ? 'TRIP DETAILS' : 'PLANNING MODE'}
                   </p>
+                  {collectedEntries.length > 0 ? (
+                    <div className="space-y-2">
+                      {collectedEntries.map(([key, value]) => (
+                        <div 
+                          key={key} 
+                          className="p-3 rounded-xl flex items-start gap-3 animate-fade-in"
+                          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}
+                        >
+                          <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--accent-primary)' }} />
+                          <div>
+                            <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                              {INFO_LABELS[key] || key}
+                            </p>
+                            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)', letterSpacing: '-0.2px' }}>
+                              {Array.isArray(value) ? value.join(', ') : 
+                               typeof value === 'boolean' ? (value ? 'Yes' : 'No') :
+                               typeof value === 'number' ? (key === 'total_budget' ? `₹${value.toLocaleString()}` : String(value)) :
+                               String(value)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 rounded-xl" style={{ border: '1px dashed var(--border-main)' }}>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Tell me about your trip...
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
-            </>
-          )}
 
-          {sidebarView === 'agents' && chatMode !== 'planning' && (
-            <>
-              <p className="clay-label mb-4">AI Agents</p>
+              <p className="clay-label mb-3">AI Agents</p>
               <div className="space-y-3">
                 {[
-                  { icon: Navigation, label: 'Transport', desc: 'Flights • Trains • Buses', color: 'var(--accent-primary)', bg: 'var(--accent-light)' },
-                  { icon: Car, label: 'Cabs', desc: 'Ola vs Uber comparison', color: 'var(--accent-primary)', bg: 'var(--accent-light)' },
-                  { icon: Hotel, label: 'Hotels', desc: 'Best stays for your budget', color: '#6d28d9', bg: '#ede9fe' },
-                  { icon: Utensils, label: 'Food', desc: 'Local cuisine & restaurants', color: '#b45309', bg: '#fef3c7' },
-                  { icon: MapPin, label: 'Places', desc: 'Tourist spots & attractions', color: '#be123c', bg: '#ffe4e6' },
-                  { icon: Navigation, label: 'Maps', desc: 'Optimized route planning', color: '#0e7490', bg: '#cffafe' },
-                ].map((stage, i) => (
-                  <div key={i} className="p-4 rounded-xl" style={{ border: '1px solid var(--border-main)', backgroundColor: 'var(--bg-surface)' }}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: stage.bg }}>
-                        <stage.icon className="h-5 w-5" style={{ color: stage.color }} />
+                  { id: 'transport', icon: Navigation, label: 'Transport', desc: 'Flights • Trains • Buses', color: 'var(--accent-primary)', bg: 'var(--accent-light)' },
+                  { id: 'cabs', icon: Car, label: 'Cabs', desc: 'Ola vs Uber comparison', color: 'var(--accent-primary)', bg: 'var(--accent-light)' },
+                  { id: 'hotels', icon: Hotel, label: 'Hotels', desc: 'Best stays for your budget', color: '#6d28d9', bg: '#ede9fe' },
+                  { id: 'food', icon: Utensils, label: 'Food', desc: 'Local cuisine & restaurants', color: '#b45309', bg: '#fef3c7' },
+                  { id: 'places', icon: MapPin, label: 'Places', desc: 'Tourist spots & attractions', color: '#be123c', bg: '#ffe4e6' },
+                  { id: 'maps', icon: Navigation, label: 'Maps', desc: 'Optimized route planning', color: '#0e7490', bg: '#cffafe' },
+                ].map((stage, i) => {
+                  const isActive = chatMode === 'planning' && collectedEntries.length > 2; // Simulated active state
+                  return (
+                    <button 
+                      key={i} 
+                      onClick={() => {
+                        setInput(`I need help with ${stage.label.toLowerCase()}...`);
+                        document.querySelector('input')?.focus();
+                      }}
+                      className="w-full text-left p-3 rounded-xl transition-all hover:scale-[1.02]" 
+                      style={{ border: '1px solid var(--border-main)', backgroundColor: 'var(--bg-surface)' }}
+                    >
+                      <div className="flex items-center gap-3 relative">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center relative" style={{ backgroundColor: stage.bg }}>
+                          <stage.icon className="h-5 w-5" style={{ color: stage.color }} />
+                          {isActive && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-pulse" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold" style={{ letterSpacing: '-0.2px', color: 'var(--text-primary)' }}>{stage.label}</p>
+                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{stage.desc}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold" style={{ letterSpacing: '-0.2px', color: 'var(--text-primary)' }}>{stage.label}</p>
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{stage.desc}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </>
           )}
@@ -286,12 +293,20 @@ export default function ChatPage() {
                 ))}
               </div>
 
-              <p className="clay-label mb-4">Preferences</p>
-              <div className="space-y-2">
+              <p className="clay-label mb-4">Personal Preferences</p>
+              <div className="space-y-3">
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  Your travel preferences help Yatri AI give personalized recommendations. 
-                  The more you chat, the better it learns!
+                  Set your global dos, don'ts, pros, and cons here. All agents will prioritize these instructions for highly personalized results.
                 </p>
+                <textarea 
+                  className="w-full p-3 rounded-xl text-sm transition-all focus:outline-none"
+                  style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)', color: 'var(--text-primary)', minHeight: '120px', resize: 'vertical' }}
+                  placeholder="E.g., I am strictly vegetarian. I hate long layovers. I love boutique hotels over large chains. No travel before 9 AM."
+                  onChange={(e) => {
+                    localStorage.setItem('yatri_user_prefs', e.target.value);
+                  }}
+                  defaultValue={typeof window !== 'undefined' ? localStorage.getItem('yatri_user_prefs') || '' : ''}
+                />
               </div>
             </>
           )}
@@ -408,13 +423,31 @@ export default function ChatPage() {
 
             {isLoading && (
               <div className="flex justify-start animate-fade-in">
-                <div className="bubble-assistant flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--text-faint)', animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--text-faint)', animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--text-faint)', animationDelay: '300ms' }} />
+                <div className="bubble-assistant p-4 w-full max-w-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--accent-primary)', animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--accent-primary)', animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--accent-primary)', animationDelay: '300ms' }} />
+                    </div>
+                    <span className="text-xs font-bold" style={{ color: 'var(--accent-dark)' }}>RESEARCHING IN PARALLEL...</span>
                   </div>
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Yatri AI is thinking...</span>
+                  <div className="space-y-2">
+                    {[
+                      { num: 1, label: 'Routing optimal map path...', icon: '🗺️' },
+                      { num: 2, label: 'Fetching top 3-5 hotels...', icon: '🏨' },
+                      { num: 3, label: 'Checking cab APIs for rates...', icon: '🚕' },
+                    ].map((step, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center font-bold text-[10px]" style={{ backgroundColor: 'var(--accent-light)', color: 'var(--accent-dark)' }}>{step.num}</span>
+                        <span className="animate-pulse">{step.icon} {step.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px dashed var(--border-main)' }}>
+                    <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>Confidence Score: Evaluating</span>
+                    <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>RAGAS checks: Pending</span>
+                  </div>
                 </div>
               </div>
             )}
