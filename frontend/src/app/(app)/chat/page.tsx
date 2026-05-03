@@ -5,10 +5,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Map, Navigation, Utensils, Hotel, Car, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
+import CabTable from '@/components/CabTable';
+import FlightTable from '@/components/FlightTable';
+import HotelGrid from '@/components/HotelGrid';
+import MapView from '@/components/MapView';
+
 // Dummy implementation of ChatWindow to show dynamic design
 export default function ChatPage() {
-  const [messages, setMessages] = useState([
-    { id: '1', role: 'assistant', content: 'Where would you like to travel from and to? (e.g. Kanpur to Noida)' }
+  const [messages, setMessages] = useState<any[]>([
+    { id: '1', role: 'assistant', content: 'Where would you like to travel from and to? (e.g. Kanpur to Noida)', type: 'text' }
   ]);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -27,13 +32,28 @@ export default function ChatPage() {
     setMessages(prev => [...prev, newMsg]);
     setInput('');
     
-    // Simulate AI response
+    // Simulate AI response with custom UI components
     setTimeout(() => {
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: 'Is this an urgent trip (direct route) or are you looking to explore and enjoy?'
-      }]);
+      setMessages(prev => [
+        ...prev, 
+        {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: 'Here is the optimal route for your journey:',
+          type: 'map',
+          data: { origin: 'Kanpur', destination: 'Noida', polyline: 'dummy_polyline' }
+        },
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: 'And here are the best cab options available right now:',
+          type: 'cab',
+          data: [
+            { provider: 'Uber', price: 4500, eta: '5 mins', vehicle_type: 'Sedan' },
+            { provider: 'Ola', price: 4200, eta: '8 mins', vehicle_type: 'Mini' }
+          ]
+        }
+      ]);
     }, 1500);
   };
 
@@ -106,6 +126,10 @@ export default function ChatPage() {
                     : 'glass-panel text-slate-200 rounded-bl-sm border border-slate-700'
                 }`}>
                   <p className="text-sm md:text-base leading-relaxed">{msg.content}</p>
+                  {msg.type === 'cab' && <div className="mt-4"><CabTable options={msg.data} /></div>}
+                  {msg.type === 'flight' && <div className="mt-4"><FlightTable flights={msg.data} /></div>}
+                  {msg.type === 'hotel' && <div className="mt-4"><HotelGrid hotels={msg.data} /></div>}
+                  {msg.type === 'map' && <div className="mt-4"><MapView {...msg.data} /></div>}
                 </div>
               </motion.div>
             ))}
