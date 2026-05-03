@@ -30,7 +30,6 @@ export default function Home() {
         <div className="hidden md:flex items-center gap-8">
           <a href="#features" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Features</a>
           <a href="#agents" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Agents</a>
-          <a href="#testimonials" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Testimonials</a>
           <a href="#faq" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>FAQ</a>
         </div>
         <div className="flex items-center gap-3">
@@ -247,70 +246,6 @@ export default function Home() {
                 ))}
               </div>
             </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ═══════════════ TESTIMONIALS ═══════════════ */}
-      <section id="testimonials" className="section-padding-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-        <div className="container-wide">
-          <motion.div
-            className="mb-16"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.3 }}
-            variants={staggerContainer}
-          >
-            <motion.span variants={fadeUp} custom={0} className="clay-badge mb-4 block">
-              TRAVELERS
-            </motion.span>
-            <motion.h2 variants={fadeUp} custom={1} className="heading-lg">
-              Loved by teams who<br />care about craft.
-            </motion.h2>
-          </motion.div>
-
-          <motion.div
-            className="grid md:grid-cols-2 gap-6"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
-            variants={staggerContainer}
-          >
-            {[
-              {
-                quote: '"Yatri AI planned my entire Rajasthan trip in under 30 seconds. The itinerary was better than what I spent 3 hours doing manually."',
-                name: 'Priya Sharma',
-                role: 'Product Designer · Mumbai',
-              },
-              {
-                quote: '"We integrated this into our corporate travel workflow. The six-agent architecture is genuinely impressive — it handles every edge case."',
-                name: 'Rahul Verma',
-                role: 'Engineering Lead · Bangalore',
-              },
-              {
-                quote: '"The food and places recommendations were spot on. It felt like having a local guide who knows every hidden gem in the city."',
-                name: 'Ananya Patel',
-                role: 'Travel Blogger · Delhi',
-              },
-              {
-                quote: '"From Kanpur to Noida — transport options, cab comparisons, hotel picks — everything was curated in one clean chat interface."',
-                name: 'Vikram Singh',
-                role: 'Software Engineer · Noida',
-              },
-            ].map((testimonial, i) => (
-              <motion.div key={i} variants={fadeUp} custom={i} className="testimonial-card">
-                <p className="text-base mb-6" style={{ color: 'var(--text-primary)', lineHeight: 1.7, letterSpacing: '-0.2px' }}>
-                  {testimonial.quote}
-                </p>
-                <div className="flex items-center gap-3">
-                  <span className="green-dot-lg" />
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{testimonial.name}</p>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{testimonial.role}</p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
           </motion.div>
         </div>
       </section>
