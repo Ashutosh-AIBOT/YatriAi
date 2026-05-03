@@ -19,7 +19,12 @@ For every single minor task, component, or bug fix, you must STRICTLY follow thi
 
 Every Git commit MUST follow this smart tag convention so that changes are instantly readable, trackable, and identifiable by domain.
 
-**Format:** `[YatriAi-{DOMAIN}-{ACTION}-{SEQUENCE}] Short concise description`
+**Format:** `[YatriAi-{BRANCH}-{DOMAIN}-{ACTION}-{SEQUENCE}] Short concise description`
+
+- **BRANCH Tags:**
+  - `alpha` = Production branch
+  - `beta` = Staging/Testing branch
+  - `gamma` = Local development branch
 
 - **DOMAIN Tags:**
   - `BK` = Backend (Java Spring Boot Gateway)
@@ -37,9 +42,11 @@ Every Git commit MUST follow this smart tag convention so that changes are insta
 
 **Examples:**
 
-- `[YatriAi-BK-CB-001] User entity and JPA repo`
-- `[YatriAi-OR-ES-002] Fix LangGraph node extraction regex`
-- `[YatriAi-FT-CB-015] Implement MapView component`
+- `[YatriAi-gamma-BK-CB-019] User entity and JPA repo`
+- `[YatriAi-gamma-OR-ES-020] Fix LangGraph node extraction regex`
+- `[YatriAi-gamma-FT-CB-021] Implement MapView component`
+
+- **MERGES:** Do not increment the global sequence number for simple pull requests or merge commits. Make sure the merge is clearly visible to all. Example: `[YatriAi-alpha-MERGE] Merging beta into alpha for production release`.
 
 ---
 
