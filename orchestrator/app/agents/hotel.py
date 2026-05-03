@@ -9,11 +9,35 @@ TIMEOUT = httpx.Timeout(10.0, connect=3.0)
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8))
 async def _fetch_hotels(dest: str, start_date: str, end_date: str, stars: int) -> list:
-    # Mocking Hotel API call
-    return [
-        {"id": "h1", "name": f"Hotel 1 {dest}", "rating": stars, "price_per_night": 2000, "amenities": ["wifi", "pool"]},
-        {"id": "h2", "name": f"Hotel 2 {dest}", "rating": stars, "price_per_night": 2500, "amenities": ["wifi", "breakfast"]}
-    ]
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        r = await client.get(
+            "https://booking-com.p.rapidapi.com/v1/hotels/search",
+            headers={
+                "X-RapidAPI-Key": settings.rapidapi_key,
+                "X-RapidAPI-Host": "booking-com.p.rapidapi.com"
+            },
+            params={
+                "dest_id": dest,
+                "search_type": "city",
+                "arrival_date": start_date,
+                "departure_date": end_date,
+                "guest_qty": 1,
+                "room_qty": 1
+            }
+        )
+        r.raise_for_status()
+        data = r.json()
+        
+        results = []
+        for h in data.get("result", [])[:5]:
+            results.append({
+                "id": h.get("hotel_id"),
+                "name": h.get("hotel_name"),
+                "rating": h.get("class", stars),
+                "price_per_night": h.get("min_total_price", 0),
+                "amenities": ["wifi"] # Mocked due to endpoint limits
+            })
+        return results
 
 async def search(state: dict) -> dict:
     dest = state.get("destination")

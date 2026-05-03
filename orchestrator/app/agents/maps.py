@@ -9,13 +9,35 @@ TIMEOUT = httpx.Timeout(10.0, connect=3.0)
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8))
 async def _fetch_route(origin: str, dest: str, stops: list) -> dict:
-    # Mocking Google Maps API call
-    return {
-        "distance": "500 km",
-        "duration": "8 hours",
-        "polyline": "encoded_polyline_string",
-        "waypoints": stops
-    }
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        waypoints = "|".join(stops) if stops else ""
+        params = {
+            "origin": origin,
+            "destination": dest,
+            "key": settings.google_maps_api_key
+        }
+        if waypoints:
+            params["waypoints"] = waypoints
+            
+        r = await client.get(
+            "https://maps.googleapis.com/maps/api/directions/json",
+            params=params
+        )
+        r.raise_for_status()
+        data = r.json()
+        
+        if data.get("status") != "OK":
+            raise Exception(f"Google Maps API error: {data.get('status')}")
+            
+        route = data["routes"][0]
+        leg = route["legs"][0]
+        
+        return {
+            "distance": leg["distance"]["text"],
+            "duration": leg["duration"]["text"],
+            "polyline": route["overview_polyline"]["points"],
+            "waypoints": stops
+        }
 
 async def build_route(state: dict) -> dict:
     origin = state.get("origin")
