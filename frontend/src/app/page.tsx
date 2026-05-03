@@ -338,7 +338,6 @@ export default function Home() {
             <div className="flex items-center gap-8">
               <a href="#features" className="text-sm" style={{ color: 'var(--text-secondary)' }}>Features</a>
               <a href="#agents" className="text-sm" style={{ color: 'var(--text-secondary)' }}>Agents</a>
-              <a href="#testimonials" className="text-sm" style={{ color: 'var(--text-secondary)' }}>Testimonials</a>
               <a href="#faq" className="text-sm" style={{ color: 'var(--text-secondary)' }}>FAQ</a>
             </div>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>

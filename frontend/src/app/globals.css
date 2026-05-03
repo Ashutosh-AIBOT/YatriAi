@@ -786,3 +786,32 @@ body {
   border-color: var(--accent-primary);
   cursor: pointer;
 }
+
+/* ---- Agent Status Indicators ---- */
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+
+.agent-active-pulse {
+  animation: pulse-green 1.5s ease-in-out infinite;
+}
+
+/* ---- Confidence Bar ---- */
+.confidence-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-main);
+  overflow: hidden;
+}
+
+.confidence-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.confidence-high { background: linear-gradient(90deg, #10b981, #34d399); }
+.confidence-medium { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.confidence-low { background: linear-gradient(90deg, #ef4444, #f87171); }
+
