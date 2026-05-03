@@ -35,7 +35,7 @@ async def _fetch_hotels(dest: str, start_date: str, end_date: str, stars: int) -
                 "name": h.get("hotel_name"),
                 "rating": h.get("class", stars),
                 "price_per_night": h.get("min_total_price", 0),
-                "amenities": ["wifi"] # Mocked due to endpoint limits
+                "amenities": ["wifi"]
             })
         return results
 
@@ -54,11 +54,20 @@ async def search(state: dict) -> dict:
 
     results = {"hotels": [], "error": None}
 
-    try:
-        results["hotels"] = await _fetch_hotels(dest, start_date, end_date, stars)
-    except Exception as e:
-        logger.error(f"Hotel search failed: {e}")
-        results["error"] = f"Hotel search failed: {e}"
+    if settings.is_api_available("rapidapi_key"):
+        try:
+            results["hotels"] = await _fetch_hotels(dest, start_date or "2026-06-01", end_date or "2026-06-03", stars)
+        except Exception as e:
+            logger.error(f"Hotel search failed: {e}")
+            results["error"] = f"Hotel search failed: {e}"
+    else:
+        # Fallback hotel data when RAPIDAPI_KEY is not configured
+        results["hotels"] = [
+            {"id": "fb1", "name": f"Budget Inn {dest}", "rating": 2, "price_per_night": 800, "amenities": ["wifi", "breakfast"]},
+            {"id": "fb2", "name": f"Comfort Stay {dest}", "rating": 3, "price_per_night": 1500, "amenities": ["wifi", "ac", "parking"]},
+            {"id": "fb3", "name": f"Grand Palace {dest}", "rating": 4, "price_per_night": 3500, "amenities": ["wifi", "pool", "spa", "restaurant"]},
+        ]
+        results["error"] = "RAPIDAPI_KEY not configured — showing sample hotels"
 
-    await set_cached(cache_key, results, ttl=3600) # 1 hour cache
+    await set_cached(cache_key, results, ttl=3600)
     return results

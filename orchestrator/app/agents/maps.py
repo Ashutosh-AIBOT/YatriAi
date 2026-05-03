@@ -42,22 +42,33 @@ async def _fetch_route(origin: str, dest: str, stops: list) -> dict:
 async def build_route(state: dict) -> dict:
     origin = state.get("origin")
     dest = state.get("destination")
-    stops = state.get("requested_stops", [])
+    stops = state.get("requested_stops") or []
     
     if not origin or not dest:
         return {"route": None, "error": "Missing origin or destination"}
 
-    cache_key = f"maps:{origin}:{dest}:{','.join(stops)}"
+    stop_str = ",".join(str(s) for s in stops)
+    cache_key = f"maps:{origin}:{dest}:{stop_str}"
     if cached := await get_cached(cache_key):
         return cached
 
     results = {"route": None, "error": None}
 
-    try:
-        results["route"] = await _fetch_route(origin, dest, stops)
-    except Exception as e:
-        logger.error(f"Map route failed: {e}")
-        results["error"] = f"Map route failed: {e}"
+    if settings.is_api_available("google_maps_api_key"):
+        try:
+            results["route"] = await _fetch_route(origin, dest, stops)
+        except Exception as e:
+            logger.error(f"Map route failed: {e}")
+            results["error"] = f"Map route failed: {e}"
+    else:
+        # Fallback route data
+        results["route"] = {
+            "distance": "Estimated ~350 km",
+            "duration": "Estimated ~5-6 hours",
+            "polyline": None,
+            "waypoints": stops,
+            "note": "GOOGLE_MAPS_API_KEY not configured — showing estimated route"
+        }
 
     await set_cached(cache_key, results, ttl=86400)
     return results

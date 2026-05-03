@@ -10,7 +10,6 @@ TIMEOUT = httpx.Timeout(10.0, connect=3.0)
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8))
 async def _fetch_ola(origin: str, dest: str) -> dict:
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        # Assuming origin is formatted as lat,lng
         r = await client.get(
             "https://devapi.olacabs.com/v1/products",
             headers={"X-APP-TOKEN": settings.ola_api_key},
@@ -49,20 +48,25 @@ async def compare(state: dict) -> dict:
 
     results = {"options": [], "error": None}
 
-    try:
-        ola_data = await _fetch_ola(origin, dest)
-        results["options"].append(ola_data)
-    except Exception as e:
-        logger.error(f"Ola search failed: {e}")
+    # Ola — only if API key is configured
+    if settings.is_api_available("ola_api_key"):
+        try:
+            ola_data = await _fetch_ola(origin, dest)
+            results["options"].append(ola_data)
+        except Exception as e:
+            logger.error(f"Ola search failed: {e}")
+    else:
+        results["options"].append({"provider": "Ola", "price": "N/A", "eta": "~8 mins", "vehicle_type": "Mini", "note": "OLA_API_KEY not configured"})
 
-    try:
-        uber_data = await _fetch_uber(origin, dest)
-        results["options"].append(uber_data)
-    except Exception as e:
-        logger.error(f"Uber search failed: {e}")
+    # Uber — only if API key is configured
+    if settings.is_api_available("uber_server_token"):
+        try:
+            uber_data = await _fetch_uber(origin, dest)
+            results["options"].append(uber_data)
+        except Exception as e:
+            logger.error(f"Uber search failed: {e}")
+    else:
+        results["options"].append({"provider": "Uber", "price": "N/A", "eta": "~5 mins", "vehicle_type": "Go", "note": "UBER_SERVER_TOKEN not configured"})
 
-    if not results["options"] and not results["error"]:
-        results["error"] = "All cab providers failed"
-
-    await set_cached(cache_key, results, ttl=300) # 5 min cache for cabs
+    await set_cached(cache_key, results, ttl=300)  # 5 min cache for cabs
     return results

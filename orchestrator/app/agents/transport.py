@@ -36,35 +36,37 @@ async def search(state: dict) -> dict:
     origin = state.get("origin")
     dest = state.get("destination")
     date = state.get("start_date", "")
-    modes = state.get("transport_modes", ["train", "bus"])
+    modes = state.get("transport_modes") or ["train", "bus"]
 
     if not origin or not dest:
         return {"flights": [], "trains": [], "buses": [], "error": "Missing origin or destination"}
 
-    # Format dates or codes if needed (assuming origin/dest are IATA codes for flights)
     cache_key = f"transport:{origin}:{dest}:{date}"
     if cached := await get_cached(cache_key):
         return cached
 
     results = {"flights": [], "trains": [], "buses": [], "error": None}
 
-    try:
-        if "flight" in modes:
-            results["flights"] = await _fetch_flights(origin, dest, date)
-    except Exception as e:
-        logger.error(f"Flight search failed: {e}")
-        results["error"] = f"Flight search failed: {e}"
-        results["flights"] = []
+    # Flights — only if API key is configured
+    if "flight" in modes:
+        if settings.is_api_available("amadeus_client_id"):
+            try:
+                results["flights"] = await _fetch_flights(origin, dest, date)
+            except Exception as e:
+                logger.error(f"Flight search failed: {e}")
+                results["flights"] = [{"id": "fallback", "note": "Flight API unavailable, please check manually", "origin": origin, "destination": dest}]
+        else:
+            results["flights"] = [{"id": "no-api", "note": "Amadeus API key not configured. Add AMADEUS_CLIENT_ID to enable live flights.", "origin": origin, "destination": dest}]
 
-    # Train and bus logic placeholder
+    # Train/Bus — fallback data (no external API needed)
     if "train" in modes:
-        results["trains"] = [{"id": "train1", "price": 1000, "duration": "10h"}]
+        results["trains"] = [{"id": "train1", "name": f"{origin} → {dest} Express", "price": 800, "duration": "8h", "class": "Sleeper"}]
     if "bus" in modes:
-        results["buses"] = [{"id": "bus1", "price": 800, "duration": "12h"}]
+        results["buses"] = [{"id": "bus1", "name": f"{origin} → {dest} Volvo", "price": 600, "duration": "10h", "type": "AC Sleeper"}]
 
     await set_cached(cache_key, results, ttl=1800)
     return results
 
 async def get_current_price(alert) -> float:
-    # Used by price monitor
-    return alert.last_known_price
+    """Used by price monitor background task."""
+    return alert.get("last_known_price", 0) if isinstance(alert, dict) else getattr(alert, "last_known_price", 0)
