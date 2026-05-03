@@ -5,6 +5,12 @@ from .state import TripState
 import json
 import re
 from ..db.crud import save_trip_state, save_chat_message
+from ..agents.transport import search as transport_search
+from ..agents.cab import compare as cab_compare
+from ..agents.hotel import search as hotel_search
+from ..agents.food import find as food_find
+from ..agents.places import discover as places_discover
+from ..agents.maps import build_route as map_route
 
 llm = ChatGroq(model="llama-3.1-70b-versatile", temperature=0.3)
 
@@ -75,14 +81,21 @@ Return ONLY valid JSON, nothing else.
     return state
 
 async def dispatch_agents(state: TripState) -> TripState:
-    # Dummy implementation of parallel agents for now
-    await asyncio.sleep(0.1)
-    state["transport_results"] = {"status": "ok"}
-    state["cab_results"] = {"status": "ok"}
-    state["hotel_results"] = {"status": "ok"}
-    state["food_results"] = {"status": "ok"}
-    state["places_results"] = {"status": "ok"}
-    state["map_results"] = {"status": "ok"}
+    results = await asyncio.gather(
+        transport_search(state),
+        cab_compare(state),
+        hotel_search(state),
+        food_find(state),
+        places_discover(state),
+        map_route(state),
+        return_exceptions=True
+    )
+    state["transport_results"] = results[0] if not isinstance(results[0], Exception) else {"status": "error"}
+    state["cab_results"] = results[1] if not isinstance(results[1], Exception) else {"status": "error"}
+    state["hotel_results"] = results[2] if not isinstance(results[2], Exception) else {"status": "error"}
+    state["food_results"] = results[3] if not isinstance(results[3], Exception) else {"status": "error"}
+    state["places_results"] = results[4] if not isinstance(results[4], Exception) else {"status": "error"}
+    state["map_results"] = results[5] if not isinstance(results[5], Exception) else {"status": "error"}
     return state
 
 async def build_plan(state: TripState) -> TripState:
