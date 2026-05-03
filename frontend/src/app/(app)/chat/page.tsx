@@ -360,14 +360,7 @@ export default function ChatPage() {
                         </p>
                       )}
                       {msg.data.days && msg.data.days.map((day: any, di: number) => (
-                        <div 
-                          key={di} 
-                          className="mb-3 p-3 rounded-lg plan-card plan-card-editable"
-                          onClick={() => {
-                            setInput(`I want to change Day ${day.day}: `);
-                            document.querySelector('input')?.focus();
-                          }}
-                        >
+                        <div key={di} className="mb-3 p-3 rounded-lg plan-card plan-card-editable">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-xs font-bold" style={{ color: 'var(--accent-dark)' }}>Day {day.day}</p>
                             <Edit3 className="h-3 w-3" style={{ color: 'var(--text-muted)' }} />
