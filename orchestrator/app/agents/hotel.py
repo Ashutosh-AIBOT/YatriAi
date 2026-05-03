@@ -61,11 +61,12 @@ async def search(state: dict) -> dict:
             logger.error(f"Hotel search failed: {e}")
             results["error"] = f"Hotel search failed: {e}"
     else:
-        # Fallback hotel data when RAPIDAPI_KEY is not configured
+        # Premium fallback hotel data when RAPIDAPI_KEY is not configured
         results["hotels"] = [
-            {"id": "fb1", "name": f"Budget Inn {dest}", "rating": 2, "price_per_night": 800, "amenities": ["wifi", "breakfast"]},
-            {"id": "fb2", "name": f"Comfort Stay {dest}", "rating": 3, "price_per_night": 1500, "amenities": ["wifi", "ac", "parking"]},
-            {"id": "fb3", "name": f"Grand Palace {dest}", "rating": 4, "price_per_night": 3500, "amenities": ["wifi", "pool", "spa", "restaurant"]},
+            {"id": "fb1", "name": f"The Oberoi Grand {dest}", "rating": 5, "price_per_night": 12500, "amenities": ["Spa", "Pool", "Fine Dining", "Luxury Suite"]},
+            {"id": "fb2", "name": f"Taj Heritage {dest}", "rating": 5, "price_per_night": 10500, "amenities": ["Ocean View", "Butler Service", "Infinity Pool"]},
+            {"id": "fb3", "name": f"Boutique Emerald Stay {dest}", "rating": 4, "price_per_night": 5500, "amenities": ["Organic Breakfast", "Yoga Studio", "Eco-friendly"]},
+            {"id": "fb4", "name": f"Modern Urban Loft {dest}", "rating": 4, "price_per_night": 4200, "amenities": ["High-speed WiFi", "Co-working space", "Gym"]},
         ]
         results["error"] = "RAPIDAPI_KEY not configured — showing sample hotels"
 
