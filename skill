@@ -1,0 +1,166 @@
+# YATRA AI: Autonomous Agent Build Skill & Execution Matrix
+
+**Role:** You are an autonomous Elite Staff-Level AI Software Engineer tasked with building "Yatra AI," a robust, scalable travel super-app. You are acting strictly under the "Scale to 1 Billion" rules.
+**Goal:** Build, test, and deploy the entire system sequentially, phase by phase, ensuring performance, observability, and robust end-to-end functionality.
+
+---
+
+## 1. THE CONTINUOUS EXECUTION & VERIFICATION PIPELINE
+
+For every single minor task, component, or bug fix, you must STRICTLY follow this pipeline:
+**`Plan -> Implement -> Unit Test -> Run & Verify -> Double-Check Past Work -> Fix -> Git Commit`**
+
+### 1.1 The Double-Check Protocol
+
+- **Immediate Verification:** Whenever a component is created, it MUST be executed (e.g., via `curl`, `pytest`, `mvn test`, etc.) immediately. NEVER write code and move on without running it.
+- **Regression Verification:** Whenever a new feature or phase is completed, briefly verify that previously completed dependent phases still function correctly (e.g., if modifying DB schema, verify Gateway still boots).
+
+### 1.2 Strict Git Commit Convention
+
+Every Git commit MUST follow this smart tag convention so that changes are instantly readable, trackable, and identifiable by domain.
+
+**Format:** `[YatriAi-{DOMAIN}-{ACTION}-{SEQUENCE}] Short concise description`
+
+- **DOMAIN Tags:**
+  - `BK` = Backend (Java Spring Boot Gateway)
+  - `OR` = Orchestrator (FastAPI AI Brain & RAG)
+  - `NF` = Notification (Node.js WebSocket)
+  - `FT` = Frontend (Next.js React UI)
+  - `DB` = Database & Migrations
+  - `IN` = Infrastructure (Docker, K8s, Kafka setup)
+- **ACTION Tags:**
+  - `CB` = Component Building (New features, files, logic)
+  - `ES` = Error Solving (Bug fixes, pipeline repairs)
+  - `UT` = Unit Testing (Adding or modifying tests)
+  - `RF` = Refactoring (Optimizations, Big O fixes)
+- **SEQUENCE:** A padded 3-digit number starting at `001`, incremented for each commit in that domain/action (e.g., `001`, `002`).
+
+**Examples:**
+
+- `[YatriAi-BK-CB-001] User entity and JPA repo`
+- `[YatriAi-OR-ES-002] Fix LangGraph node extraction regex`
+- `[YatriAi-FT-CB-015] Implement MapView component`
+
+---
+
+## 2. EXHAUSTIVE PHASE-BY-PHASE CHECKLIST
+
+Every minor point is listed here. Do not skip a single file or step.
+
+### Phase 0: Infrastructure & Environment
+
+- [ ] Verify Tools (Java 21, Python 3.11, Node 20, Docker, Maven, Git).
+- [ ] Create Monorepo Structure (`gateway/`, `orchestrator/`, `notification/`, `frontend/`, `infra/`).
+- [ ] Create strict `.gitignore` (ignore node_modules, .env, targets, **pycache**, etc).
+- [ ] Create `.env.example` mapping all necessary variables.
+- [ ] Create `infra/docker-compose.yml` (Postgres+pgvector, Redis, Zookeeper, Kafka).
+- [ ] Run `docker-compose up -d` and verify containers are healthy.
+- [ ] **Commit:** `[YatriAi-IN-CB-001] Base monorepo structure and docker containers`
+
+### Phase 1: Database Schema (Neon/Postgres)
+
+- [ ] Create `scripts/migrations/001_init.sql`.
+- [ ] Add Extensions: `uuid-ossp`, `vector`.
+- [ ] Tables: `users`, `refresh_tokens`, `user_preferences`, `user_pref_vectors`.
+- [ ] Tables: `trips`, `trip_stages`, `bookmarks`, `chat_messages`.
+- [ ] Tables: `price_alerts`, `search_cache`.
+- [ ] Apply migration and verify tables via `psql`.
+- [ ] **Commit:** `[YatriAi-DB-CB-001] Core DB schema migration`
+
+### Phase 2: Gateway Service (Spring Boot 3)
+
+- [ ] Bootstrap `pom.xml` with dependencies (JPA, Redis, Security, JWT, Bucket4j).
+- [ ] Configure `application.yml` (HikariCP, Virtual Threads, Redis).
+- [ ] Create `AppConfig.java`.
+- [ ] Entities: `User.java`, `UserPreference.java`, `RefreshToken.java`.
+- [ ] Repositories: `UserRepository`, `UserPreferenceRepository`, `RefreshTokenRepository`.
+- [ ] DTOs: `UserDTO`, `RegisterRequest`, `LoginRequest`, `PreferenceUpdateRequest`.
+- [ ] Exceptions: `ApiResponse`, `ApiException`, `GlobalExceptionHandler`.
+- [ ] Filters: `TraceIdFilter` (MDC mapping), `JwtAuthFilter`, `RateLimitFilter`.
+- [ ] Services: `TokenService`, `AuthService`, `UserService`.
+- [ ] Security Configs: `SecurityConfig`, `CorsConfig`.
+- [ ] Controllers: `AuthController`, `UserController`, `HealthController`.
+- [ ] Run unit tests (`mvn test`).
+- [ ] Manual test (`curl` register, login, health endpoints).
+- [ ] **Double-Check:** Can you actually login and get a JWT? Does Redis cache the rate limit?
+- [ ] **Commit:** Sequence of `[YatriAi-BK-CB-XXX]` commits.
+
+### Phase 3: AI Orchestrator (FastAPI + LangGraph)
+
+- [ ] Bootstrap `requirements.txt` and virtualenv.
+- [ ] Configure `config.py` using `pydantic-settings`.
+- [ ] Define `TripState` in `state.py`.
+- [ ] Create Graph Nodes in `nodes.py` (router, extractor, dispatcher, planner).
+- [ ] Assemble Graph in `graph.py`.
+- [ ] Create Agents: `transport.py`, `cab.py`, `hotel.py`, `food.py`, `places.py`, `maps.py`.
+- [ ] Implement RAG integration (vector retrieval of prefs).
+- [ ] Setup `cache.py` (Redis Cache-aside with TTL).
+- [ ] Create `main.py` (Endpoints: `/api/v1/chat`, `/health`).
+- [ ] Run unit tests (`pytest`).
+- [ ] Manual test (`curl` chat endpoint to verify LangGraph execution).
+- [ ] **Double-Check:** Are LLM calls rate limited and resilient? Are agent calls running via parallel `asyncio.gather`?
+- [ ] **Commit:** Sequence of `[YatriAi-OR-CB-XXX]` commits.
+
+### Phase 4: Notification Service (Node.js + Socket.io)
+
+- [ ] Bootstrap `package.json`.
+- [ ] Set up Express + Socket.io in `server.js`.
+- [ ] Create `auth.js` middleware (Verify JWT from socket handshake).
+- [ ] Set up Kafka consumer in `consumer.js` to listen to alert topics.
+- [ ] Emit events to connected users.
+- [ ] Run test client to verify connection and push events.
+- [ ] **Commit:** `[YatriAi-NF-CB-001] WebSocket and Kafka consumer push`
+
+### Phase 5: Frontend Application (Next.js)
+
+- [ ] Setup Next.js with Tailwind.
+- [ ] Create `lib/api.ts` (Axios interceptor with auto-refresh JWT).
+- [ ] Create `lib/socket.ts` for WebSocket connections.
+- [ ] Setup Zustand stores (`authStore.ts`, `tripStore.ts`).
+- [ ] Build Auth UI: Login, Register + Preference Wizard.
+- [ ] Build Chat UI: `ChatWindow`, `MessageBubble`, `StageCard`.
+- [ ] Build Map UI: `MapView` (Google Maps).
+- [ ] Build Comparison UI: `CabTable`, `FlightTable`, `HotelGrid`.
+- [ ] Combine all into `/app/(app)/chat/page.tsx`.
+- [ ] Run `npm run dev` and manually test the full UI flow.
+- [ ] **Double-Check:** Does modifying a stage card correctly re-render UI?
+- [ ] **Commit:** Sequence of `[YatriAi-FT-CB-XXX]` commits.
+
+### Phase 6: Kafka Topic Configuration
+
+- [ ] Provision the exact topics (`trip.started`, `price.alert`, `booking.confirmed`, `cab.eta.update`) with proper partition counts (12 for high volume, 6 for standard).
+- [ ] **Commit:** `[YatriAi-IN-CB-002] Provision Kafka topics`
+
+### Phase 7: Price Monitor & Background Tasks
+
+- [ ] Implement infinite polling loop in Orchestrator (`kafka/consumer.py`).
+- [ ] Fetch active alerts, query APIs, push to Kafka `price.alert` if threshold crossed.
+- [ ] **Double-Check:** Is this blocking the main thread? (Must be run via `asyncio.create_task`).
+- [ ] **Commit:** `[YatriAi-OR-CB-010] Background price monitoring loop`
+
+### Phase 8: E2E Integration Testing
+
+- [ ] Boot all 4 services + Database/Infra concurrently.
+- [ ] Execute script to simulate complete User flow (Register -> Login -> Complete all 7 Chat stages -> Verify Itinerary output).
+- [ ] Document result.
+- [ ] **Commit:** `[YatriAi-IN-TS-001] E2E Integration script passed`
+
+### Phase 9 & 10: Performance & Multi-language
+
+- [ ] Load Test Gateway with `k6` to verify Big O and connection pool stability.
+- [ ] Add translation layer calling Google Translate in FastAPI.
+- [ ] **Commit:** Corresponding Performance and Refactor commits.
+
+---
+
+## 3. ABSOLUTE SYSTEM CONSTRAINTS (SCALE TO 1 BILLION)
+
+Failure to adhere to these rules means the implementation is invalid and must be deleted and rewritten.
+
+1. **Big O Verification:** Never write O(n²) code. All algorithms must be O(n) or better.
+2. **Batch DB Operations:** NEVER execute database queries inside a loop.
+3. **Pagination:** NEVER return unbounded lists or use `SELECT *`.
+4. **Caching & Concurrency:** All Redis keys MUST have a TTL. Push heavy blocking operations to Kafka/Background Tasks.
+5. **Fail Fast & Resiliency:** All API calls get Timeouts and Circuit breakers.
+6. **Zero Secrets in Code:** Use `.env`. No exceptions.
+7. **Observability:** All APIs must use structured JSON logging. A `traceId` must be passed between Frontend -> Gateway -> Orchestrator to track single requests.
