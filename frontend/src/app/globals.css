@@ -1,62 +1,593 @@
 @import "tailwindcss";
 
+/* ============================================
+   YATRI AI — Clay Design System v2.0
+   Clean white canvas, emerald green accent,
+   premium typography, smooth micro-animations.
+   Inspired by Clay.com aesthetics.
+   ============================================ */
+
 @theme {
+  /* Primary */
   --color-warm-cream: #faf9f7;
-  --color-clay-black: #000000;
-  --color-oat-border: #dad4c8;
+  --color-clay-black: #0a0a0a;
+  --color-pure-white: #ffffff;
+
+  /* Emerald Green Accent (Clay style) */
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+
+  /* Swatch Palette — Named Colors */
+  --color-matcha-300: #84e7a5;
   --color-matcha-600: #078a52;
+  --color-matcha-800: #02492a;
   --color-slushie-500: #3bd3fd;
+  --color-slushie-800: #0089ad;
+  --color-lemon-400: #f8cc65;
   --color-lemon-500: #fbbd41;
+  --color-lemon-700: #d08a11;
+  --color-ube-300: #c1b0ff;
   --color-ube-800: #43089f;
+  --color-ube-900: #32037d;
   --color-pomegranate-400: #fc7981;
+  --color-blueberry-800: #01418d;
+  --color-dragonfruit: #e040a0;
+
+  /* Neutrals */
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f5f5f5;
+  --color-neutral-200: #e5e5e5;
+  --color-neutral-300: #d4d4d4;
+  --color-neutral-400: #a3a3a3;
+  --color-neutral-500: #737373;
+  --color-neutral-600: #525252;
+  --color-neutral-700: #404040;
+  --color-neutral-800: #262626;
+  --color-neutral-900: #171717;
+
+  /* Surface & Border */
+  --color-oat-border: #e5e5e5;
+  --color-oat-light: #f5f5f5;
+  --color-cool-border: #e6e8ec;
+
+  /* Warm legacy compat */
+  --color-warm-silver: #9f9b93;
+  --color-warm-charcoal: #55534e;
+  --color-dark-charcoal: #333333;
+  --color-oat-border-legacy: #dad4c8;
+  --color-oat-light-legacy: #eee9df;
 }
 
+/* ---- Base ---- */
 body {
-  background-color: var(--color-warm-cream);
+  background-color: var(--color-pure-white);
   color: var(--color-clay-black);
-  font-family: 'Inter', sans-serif; /* Roobert fallback */
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* ---- Selection ---- */
+::selection {
+  background-color: var(--color-emerald-400);
+  color: var(--color-clay-black);
+}
+
+/* ---- Clay Card ---- */
 .clay-card {
-  background: #ffffff;
+  background: var(--color-pure-white);
   border: 1px solid var(--color-oat-border);
-  border-radius: 24px;
-  box-shadow: rgba(0,0,0,0.1) 0px 1px 1px, rgba(0,0,0,0.04) 0px -1px 1px inset, rgba(0,0,0,0.05) 0px -0.5px 1px;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.clay-card:hover {
+  box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+
+/* ---- Clay Card Dashed variant ---- */
+.clay-card-dashed {
+  background: var(--color-pure-white);
+  border: 1px dashed var(--color-oat-border);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
   transition: all 0.3s ease;
 }
 
+/* ---- Testimonial Card ---- */
+.testimonial-card {
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-oat-border);
+  border-radius: 16px;
+  padding: 32px;
+  transition: all 0.3s ease;
+}
+
+.testimonial-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+/* ---- Clay Button (Primary) ---- */
 .clay-button {
-  background: transparent;
-  color: #000000;
-  border: 1px solid #717989;
-  border-radius: 4px;
-  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-clay-black);
+  color: var(--color-pure-white);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
   font-weight: 500;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
 }
 
 .clay-button:hover {
-  background: var(--color-matcha-600);
-  color: white;
-  transform: rotateZ(-8deg) translateY(-8px);
-  box-shadow: rgb(0,0,0) -7px 7px 0px;
-  border-color: var(--color-clay-black);
+  background: var(--color-neutral-800);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+/* ---- Clay Button CTA (Green) ---- */
+.clay-button-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-emerald-500);
+  color: var(--color-pure-white);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+}
+
+.clay-button-cta:hover {
+  background: var(--color-emerald-600);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+}
+
+/* ---- Clay Button Ghost ---- */
+.clay-button-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--color-clay-black);
+  border: 1px solid var(--color-oat-border);
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+}
+
+.clay-button-ghost:hover {
+  background: var(--color-neutral-50);
+  border-color: var(--color-neutral-300);
+  transform: translateY(-1px);
+}
+
+/* ---- Clay Button Pill ---- */
+.clay-button-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-pure-white);
+  color: var(--color-clay-black);
+  border: 1px solid var(--color-oat-border);
+  border-radius: 999px;
+  padding: 12px 28px;
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+}
+
+.clay-button-pill:hover {
+  background: var(--color-neutral-50);
+  border-color: var(--color-neutral-300);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+}
+
+/* ---- Clay Input ---- */
 .clay-input {
-  background: #ffffff;
-  border: 1px solid #717989;
-  border-radius: 4px;
-  color: #000000;
+  background: var(--color-pure-white);
+  border: 1px solid var(--color-oat-border);
+  border-radius: 10px;
+  color: var(--color-clay-black);
+  padding: 14px 18px;
+  font-size: 15px;
+  width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.clay-input::placeholder {
+  color: var(--color-neutral-400);
 }
 
 .clay-input:focus {
   outline: none;
-  border-color: rgb(20, 110, 245);
-  box-shadow: 0 0 0 2px rgb(20, 110, 245);
+  border-color: var(--color-emerald-500);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
+/* ---- Section backgrounds using swatch palette ---- */
+.swatch-matcha { background-color: var(--color-matcha-800); color: white; }
+.swatch-slushie { background-color: var(--color-slushie-800); color: white; }
+.swatch-ube { background-color: var(--color-ube-800); color: white; }
+.swatch-lemon { background-color: var(--color-lemon-400); color: var(--color-clay-black); }
+.swatch-pomegranate { background-color: var(--color-pomegranate-400); color: var(--color-clay-black); }
+
+/* ---- Badge ---- */
+.clay-badge {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-emerald-600);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+
+/* ---- Uppercase Label ---- */
+.clay-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--color-neutral-400);
+}
+
+/* ---- Chat Bubbles ---- */
+.bubble-user {
+  background: var(--color-clay-black);
+  color: var(--color-pure-white);
+  border-radius: 20px 20px 4px 20px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.bubble-assistant {
+  background: var(--color-neutral-50);
+  color: var(--color-clay-black);
+  border: 1px solid var(--color-oat-border);
+  border-radius: 20px 20px 20px 4px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+/* ---- Nav ---- */
+.clay-nav {
+  background: var(--color-pure-white);
+  border-bottom: 1px solid var(--color-oat-border);
+  padding: 16px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.9);
+}
+
+/* ---- Green Dot (Logo icon like Clay) ---- */
+.green-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--color-emerald-500);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.green-dot-lg {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--color-emerald-500);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ---- Feature Icon Box ---- */
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.feature-icon-emerald {
+  background-color: #d1fae5;
+  color: var(--color-emerald-700);
+}
+
+.feature-icon-blue {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.feature-icon-purple {
+  background-color: #ede9fe;
+  color: #6d28d9;
+}
+
+.feature-icon-amber {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.feature-icon-rose {
+  background-color: #ffe4e6;
+  color: #be123c;
+}
+
+.feature-icon-cyan {
+  background-color: #cffafe;
+  color: #0e7490;
+}
+
+/* ---- Gradient Text ---- */
 .gradient-text {
-  color: var(--color-ube-800);
+  background: linear-gradient(135deg, var(--color-emerald-500), var(--color-emerald-700));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ---- Dashboard Preview Box ---- */
+.dashboard-preview {
+  background: var(--color-neutral-100);
+  border: 1px solid var(--color-oat-border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+}
+
+.dashboard-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-oat-border);
+  background: var(--color-neutral-50);
+}
+
+.preview-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-neutral-300);
+}
+
+/* ---- FAQ Item ---- */
+.faq-item {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--color-oat-border);
+}
+
+.faq-item:last-child {
+  border-bottom: none;
+}
+
+.faq-question {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-clay-black);
+  margin-bottom: 8px;
+  letter-spacing: -0.2px;
+}
+
+.faq-answer {
+  font-size: 14px;
+  color: var(--color-neutral-500);
+  line-height: 1.6;
+}
+
+/* ---- Pricing Card ---- */
+.pricing-card {
+  background: var(--color-pure-white);
+  border: 1px solid var(--color-oat-border);
+  border-radius: 16px;
+  padding: 32px;
+  transition: all 0.3s ease;
+}
+
+.pricing-card:hover {
+  box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+}
+
+.pricing-card-featured {
+  background: var(--color-clay-black);
+  color: var(--color-pure-white);
+  border: 1px solid transparent;
+  border-radius: 16px;
+  padding: 32px;
+  transition: all 0.3s ease;
+}
+
+.pricing-card-featured:hover {
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+  transform: translateY(-2px);
+}
+
+/* ---- Stat Card ---- */
+.stat-card {
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-oat-border);
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+
+/* ---- Divider ---- */
+.clay-divider {
+  border: none;
+  height: 1px;
+  background: var(--color-oat-border);
+  margin: 0;
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-neutral-100); }
+::-webkit-scrollbar-thumb { background: var(--color-neutral-300); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-neutral-400); }
+
+/* ---- Animations ---- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.animate-fade-in-delay-1 {
+  animation: fadeInUp 0.5s ease 0.1s forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-delay-2 {
+  animation: fadeInUp 0.5s ease 0.2s forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-delay-3 {
+  animation: fadeInUp 0.5s ease 0.3s forwards;
+  opacity: 0;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* ---- Section Spacing ---- */
+.section-padding {
+  padding-top: 80px;
+  padding-bottom: 80px;
+}
+
+.section-padding-lg {
+  padding-top: 120px;
+  padding-bottom: 120px;
+}
+
+/* ---- Container ---- */
+.container-narrow {
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.container-wide {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* ---- Typography ---- */
+.heading-xl {
+  font-size: clamp(36px, 6vw, 72px);
+  font-weight: 600;
+  letter-spacing: -2.5px;
+  line-height: 1.05;
+  color: var(--color-clay-black);
+}
+
+.heading-lg {
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 600;
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+  color: var(--color-clay-black);
+}
+
+.heading-md {
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 600;
+  letter-spacing: -0.8px;
+  line-height: 1.2;
+  color: var(--color-clay-black);
+}
+
+.body-text {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--color-neutral-500);
+}
+
+.body-text-sm {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-neutral-500);
+}
+
+/* ---- Checkmark List ---- */
+.check-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.check-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.check-list li::before {
+  content: '✓';
+  color: var(--color-emerald-500);
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
 }

@@ -1,23 +1,22 @@
 from langgraph.graph import StateGraph, END
 from .state import TripState
-from .nodes import stage_router, extract_stage_info, dispatch_agents, build_plan
+from .nodes import smart_chat, dispatch_agents, build_plan
 
-def should_collect_more(state: TripState) -> str:
-    return "collect" if state["current_stage"] <= 7 else "dispatch"
+def should_dispatch(state: TripState) -> str:
+    """Only dispatch agents when we have enough info (stage >= 8)."""
+    return "dispatch" if state.get("current_stage", 1) >= 8 else "end"
 
 def build_trip_graph():
     g = StateGraph(TripState)
-    g.add_node("route",    stage_router)
-    g.add_node("extract",  extract_stage_info)
+    g.add_node("chat",     smart_chat)
     g.add_node("dispatch", dispatch_agents)
     g.add_node("plan",     build_plan)
 
-    g.set_entry_point("extract")
-    g.add_conditional_edges("extract", should_collect_more, {
-        "collect": "route",
+    g.set_entry_point("chat")
+    g.add_conditional_edges("chat", should_dispatch, {
+        "end": END,
         "dispatch": "dispatch"
     })
-    g.add_edge("route", END)
     g.add_edge("dispatch", "plan")
     g.add_edge("plan", END)
     return g.compile()

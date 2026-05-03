@@ -24,6 +24,7 @@ class ChatRequest(BaseModel):
     message: str
     session_id: str = "default"
     user_prefs: Optional[Dict[str, Any]] = None
+    action: Optional[str] = None  # "plan_trip" to start planning mode
 
 class ChatResponse(BaseModel):
     trip_id: str
@@ -32,6 +33,8 @@ class ChatResponse(BaseModel):
     plan: Optional[Dict] = None
     ui_type: str = "text"
     ui_data: Optional[Any] = None
+    collected_info: Optional[Dict] = None  # Show what we know so far
+    chat_mode: str = "chat"  # "chat" or "planning"
 
 # ---- Lifespan (Startup / Shutdown) ----
 
@@ -53,7 +56,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="YatraAI Orchestrator",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan
 )
 
@@ -74,6 +77,7 @@ def _init_state(req: ChatRequest) -> dict:
         "trip_id": req.trip_id or str(uuid.uuid4()),
         "user_id": req.user_id,
         "user_prefs": req.user_prefs or {},
+        "chat_mode": "chat",
         "current_stage": 1,
         "messages": [],
         "origin": None, "destination": None,
@@ -89,6 +93,18 @@ def _init_state(req: ChatRequest) -> dict:
         "places_results": None, "map_results": None,
         "final_plan": None, "error": None
     }
+
+def _get_collected_info(state: dict) -> dict:
+    """Return what we know about the trip so far."""
+    collected = {}
+    for field in ["origin", "destination", "trip_type", "transport_modes",
+                   "start_date", "end_date", "total_budget", "group_size",
+                   "hotel_stars", "is_vegetarian", "cuisine_preferences",
+                   "interest_tags"]:
+        val = state.get(field)
+        if val is not None:
+            collected[field] = val
+    return collected
 
 # ---- Endpoints ----
 
@@ -110,12 +126,12 @@ async def health():
         "status": "ok",
         "service": "orchestrator",
         "redis": redis_status,
-        "llm": "groq-llama-3.1-70b"
+        "llm": "groq-llama-3.1-8b-instant"
     }
 
 @app.post("/api/v1/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
-    """Main chat endpoint — routes user message through LangGraph state machine."""
+    """Main chat endpoint — routes user message through smart conversational AI."""
     try:
         # 1. Load or init trip state from Redis (if available)
         state = None
@@ -133,27 +149,32 @@ async def chat(req: ChatRequest):
         if state is None:
             state = _init_state(req)
 
-        # 2. Inject user message
+        # 2. Handle "plan_trip" action — switch to planning mode
+        if req.action == "plan_trip":
+            state["chat_mode"] = "planning"
+            if not req.message or req.message == "plan_trip":
+                req.message = "I want to plan a trip"
+
+        # 3. Inject user message
         state["messages"].append({"role": "user", "content": req.message})
 
-        # 3. Run LangGraph state machine
+        # 4. Run LangGraph state machine
         result = await trip_graph.ainvoke(state)
 
-        # 4. Persist updated state to Redis (if available)
+        # 5. Persist updated state to Redis (if available)
         if r:
             try:
                 await r.set(state_key, json.dumps(result, default=str), ex=86400)  # 24h TTL
             except Exception as e:
                 logger.warning(f"Could not save state to Redis: {e}")
 
-        # 5. Extract last assistant message
+        # 6. Extract last assistant message
         assistant_msgs = [m for m in result.get("messages", []) if m.get("role") == "assistant"]
         last_msg = assistant_msgs[-1]["content"] if assistant_msgs else "Processing your request..."
 
-        # 6. Determine UI type for rich rendering
+        # 7. Determine UI type for rich rendering
         ui_type = "text"
         ui_data = None
-        current_stage = result.get("current_stage", 1)
 
         if result.get("final_plan"):
             ui_type = "plan"
@@ -171,10 +192,12 @@ async def chat(req: ChatRequest):
         return ChatResponse(
             trip_id=result.get("trip_id", req.trip_id),
             message=last_msg,
-            stage=current_stage,
+            stage=result.get("current_stage", 1),
             plan=result.get("final_plan"),
             ui_type=ui_type,
-            ui_data=ui_data
+            ui_data=ui_data,
+            collected_info=_get_collected_info(result),
+            chat_mode=result.get("chat_mode", "chat")
         )
 
     except Exception as e:
@@ -184,5 +207,6 @@ async def chat(req: ChatRequest):
             trip_id=req.trip_id or "error",
             message=f"I'm sorry, something went wrong on my end. Please try again. (Error: {str(e)[:100]})",
             stage=1,
-            ui_type="text"
+            ui_type="text",
+            chat_mode="chat"
         )

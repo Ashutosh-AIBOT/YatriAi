@@ -19,24 +19,30 @@ export default function FlightTable({ flights }: FlightTableProps) {
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-panel rounded-2xl overflow-hidden"
+      className="clay-card overflow-hidden"
     >
-      <table className="w-full text-left text-sm text-slate-300">
-        <thead className="bg-slate-800/50 text-xs uppercase text-slate-400">
+      <table className="w-full text-left text-sm" style={{ color: 'var(--color-neutral-600)' }}>
+        <thead style={{ backgroundColor: 'var(--color-neutral-50)', borderBottom: '1px solid var(--color-oat-border)' }}>
           <tr>
-            <th className="px-6 py-3">Airline</th>
-            <th className="px-6 py-3">Departure</th>
-            <th className="px-6 py-3">Arrival</th>
-            <th className="px-6 py-3 text-right">Price</th>
+            <th className="px-6 py-3 text-xs font-semibold uppercase" style={{ color: 'var(--color-neutral-400)', letterSpacing: '1px' }}>Airline</th>
+            <th className="px-6 py-3 text-xs font-semibold uppercase" style={{ color: 'var(--color-neutral-400)', letterSpacing: '1px' }}>Departure</th>
+            <th className="px-6 py-3 text-xs font-semibold uppercase" style={{ color: 'var(--color-neutral-400)', letterSpacing: '1px' }}>Arrival</th>
+            <th className="px-6 py-3 text-xs font-semibold uppercase text-right" style={{ color: 'var(--color-neutral-400)', letterSpacing: '1px' }}>Price</th>
           </tr>
         </thead>
         <tbody>
           {flights.map((flight, idx) => (
-            <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-800/30 transition-colors">
-              <td className="px-6 py-4 font-medium text-white">{flight.airline || 'Standard Air'}</td>
+            <tr 
+              key={idx} 
+              className="transition-colors"
+              style={{ borderBottom: '1px solid var(--color-oat-border)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-neutral-50)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <td className="px-6 py-4 font-semibold" style={{ color: 'var(--color-clay-black)' }}>{flight.airline || 'Standard Air'}</td>
               <td className="px-6 py-4">{flight.departure}</td>
               <td className="px-6 py-4">{flight.arrival}</td>
-              <td className="px-6 py-4 text-right text-emerald-400 font-bold">₹{flight.price}</td>
+              <td className="px-6 py-4 text-right font-bold" style={{ color: 'var(--color-emerald-600)' }}>₹{flight.price}</td>
             </tr>
           ))}
         </tbody>

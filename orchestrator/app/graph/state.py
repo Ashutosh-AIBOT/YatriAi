@@ -5,6 +5,9 @@ class TripState(TypedDict):
     user_id: str
     user_prefs: Dict[str, Any]
 
+    # Conversation mode: "chat" or "planning"
+    chat_mode: Optional[str]
+
     # Stage collection
     origin: Optional[str]
     destination: Optional[str]

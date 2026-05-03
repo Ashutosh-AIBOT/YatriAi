@@ -2,8 +2,13 @@ import json
 import re
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
+from ..config import settings
 
-llm = ChatGroq(model="llama-3.1-70b-versatile", temperature=0.3)
+llm = ChatGroq(
+    model="llama-3.1-8b-instant", 
+    temperature=0.3, 
+    groq_api_key=settings.groq_api_key
+)
 
 async def generate(state: dict, ranked_results: dict) -> dict:
     prompt = f"""
