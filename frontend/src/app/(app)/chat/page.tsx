@@ -9,6 +9,7 @@ import CabTable from '@/components/CabTable';
 import FlightTable from '@/components/FlightTable';
 import HotelGrid from '@/components/HotelGrid';
 import MapView from '@/components/MapView';
+import api from '@/lib/api';
 
 // Dummy implementation of ChatWindow to show dynamic design
 export default function ChatPage() {
@@ -26,35 +27,33 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
-    const newMsg = { id: Date.now().toString(), role: 'user', content: input };
+    const newMsg = { id: Date.now().toString(), role: 'user', content: input, type: 'text' };
     setMessages(prev => [...prev, newMsg]);
     setInput('');
     
-    // Simulate AI response with custom UI components
-    setTimeout(() => {
-      setMessages(prev => [
-        ...prev, 
-        {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: 'Here is the optimal route for your journey:',
-          type: 'map',
-          data: { origin: 'Kanpur', destination: 'Noida', polyline: 'dummy_polyline' }
-        },
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: 'And here are the best cab options available right now:',
-          type: 'cab',
-          data: [
-            { provider: 'Uber', price: 4500, eta: '5 mins', vehicle_type: 'Sedan' },
-            { provider: 'Ola', price: 4200, eta: '8 mins', vehicle_type: 'Mini' }
-          ]
-        }
-      ]);
-    }, 1500);
+    try {
+      // Connect to the real Spring Boot Gateway / Orchestrator API
+      const response = await api.post('/chat', { message: input, session_id: 'default' });
+      
+      const reply = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: response.data.message || 'Processing your request...',
+        type: response.data.ui_type || 'text',
+        data: response.data.ui_data
+      };
+      setMessages(prev => [...prev, reply]);
+    } catch (error) {
+      console.error("Chat API Error:", error);
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: 'Error communicating with Yatra.AI orchestrator. Please check your connection.',
+        type: 'text'
+      }]);
+    }
   };
 
   return (
