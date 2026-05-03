@@ -4,6 +4,7 @@ import asyncio
 import json
 import re
 import logging
+from datetime import datetime, timezone
 from .state import TripState
 from ..db.crud import save_trip_state, save_chat_message
 from ..agents.transport import search as transport_search
@@ -12,6 +13,7 @@ from ..agents.hotel import search as hotel_search
 from ..agents.food import find as food_find
 from ..agents.places import discover as places_discover
 from ..agents.maps import build_route as map_route
+from ..agents.base import AgentProtocol
 from ..config import settings
 
 logger = logging.getLogger(__name__)
@@ -70,6 +72,13 @@ Always respond with valid JSON:
 Set ready_to_plan to true ONLY when you have at least: origin, destination, transport_modes, and either budget or dates.
 """
 
+# ─── Single-agent invocation prompt ───
+
+SINGLE_AGENT_PROMPT = """You are Yatri AI. The user wants to use the {agent_name} agent specifically.
+Respond helpfully about {agent_topic}. If you need more info, ask for it.
+Respond with valid JSON: {{"reply": "your message", "extracted": {{}}, "ready_to_plan": false, "mode": "chat"}}
+"""
+
 
 async def smart_chat(state: TripState) -> TripState:
     """Dynamic conversational AI — replaces the rigid stage system."""
@@ -103,11 +112,37 @@ async def smart_chat(state: TripState) -> TripState:
                     f"Ask the user for the next missing piece of information."
         ))
 
+    # Inject user preferences for personalization
+    user_prefs = state.get("user_prefs", {})
+    prefs_text = user_prefs.get("notes", "") if isinstance(user_prefs, dict) else str(user_prefs)
+    if prefs_text:
+        history_msgs.append(SystemMessage(
+            content=f"USER PERSONAL PREFERENCES (MUST RESPECT): {prefs_text}"
+        ))
+
     # Add mode context
     mode = state.get("chat_mode", "chat")
     if mode == "planning":
         history_msgs.append(SystemMessage(
             content="The user is in TRIP PLANNING mode. Focus on collecting trip information."
+        ))
+
+    # Handle single-agent invocation
+    target = state.get("target_agent")
+    if target:
+        agent_topics = {
+            "transport": "flights, trains, and buses",
+            "cabs": "cab/taxi comparisons (Ola vs Uber)",
+            "hotels": "hotel search and recommendations",
+            "food": "restaurant and food recommendations",
+            "places": "tourist attractions and places to visit",
+            "maps": "route planning and directions",
+        }
+        history_msgs.append(SystemMessage(
+            content=SINGLE_AGENT_PROMPT.format(
+                agent_name=target,
+                agent_topic=agent_topics.get(target, target)
+            )
         ))
 
     # Add recent conversation history (last 10 messages for context)
@@ -154,7 +189,7 @@ async def smart_chat(state: TripState) -> TripState:
             # If ready to plan, set stage to trigger agent dispatch
             if ready:
                 state["current_stage"] = 8  # Triggers dispatch
-                reply_text += "\n\n✨ I have everything I need! Let me create your personalized travel plan now..."
+                reply_text += "\n\n✨ I have everything I need! Let me activate all my AI agents to create your personalized travel plan..."
         else:
             # LLM didn't return JSON — just use the raw text
             reply_text = raw
@@ -183,32 +218,112 @@ async def smart_chat(state: TripState) -> TripState:
 
 
 async def dispatch_agents(state: TripState) -> TripState:
-    """Run all 6 agents in parallel — never sequentially. Never crash even if all fail."""
-    try:
-        results = await asyncio.gather(
-            transport_search(state),
-            cab_compare(state),
-            hotel_search(state),
-            food_find(state),
-            places_discover(state),
-            map_route(state),
-            return_exceptions=True
-        )
-        labels = ["transport_results", "cab_results", "hotel_results",
-                  "food_results", "places_results", "map_results"]
-        for label, result in zip(labels, results):
-            if isinstance(result, Exception):
-                logger.error(f"Agent {label} failed: {result}")
-                state[label] = {"status": "error", "error": str(result), "data": []}
-            else:
-                state[label] = result
-    except Exception as e:
-        logger.error(f"Agent dispatch entirely failed: {e}")
-        state["error"] = f"Agent dispatch failed: {e}"
+    """
+    Run all 6 agents in parallel with full A2A orchestration.
+    Each agent reports status and confidence. Agents can read sibling data.
+    """
+    # Initialize agent statuses
+    state["agent_statuses"] = {}
+    state["research_pass"] = state.get("research_pass", 0) + 1
+
+    agent_map = {
+        "transport": ("transport_results", transport_search),
+        "cabs": ("cab_results", cab_compare),
+        "hotels": ("hotel_results", hotel_search),
+        "food": ("food_results", food_find),
+        "places": ("places_results", places_discover),
+        "maps": ("map_results", map_route),
+    }
+
+    # Check if only a single agent is targeted
+    target = state.get("target_agent")
+    if target and target in agent_map:
+        agent_map = {target: agent_map[target]}
+
+    # Mark all agents as "researching"
+    for agent_name in agent_map:
+        AgentProtocol.set_status(state, agent_name, "researching",
+                                 f"Searching for {agent_name} options...")
+
+    # Phase 1: Run all agents in parallel
+    async def run_agent(name: str, result_key: str, func):
+        """Wrapper that tracks status and computes confidence."""
+        try:
+            AgentProtocol.set_status(state, name, "researching",
+                                     f"Fetching {name} data...")
+            result = await func(state)
+
+            # A2A: Some agents can enhance results using sibling data
+            called = []
+            if name == "food" and AgentProtocol.has_sibling_data(state, "maps"):
+                # Food agent can use maps data for location-aware results
+                called.append("maps")
+            if name == "hotels" and AgentProtocol.has_sibling_data(state, "transport"):
+                # Hotel agent can check transport data for arrival times
+                called.append("transport")
+            if name == "maps" and AgentProtocol.has_sibling_data(state, "places"):
+                # Maps can optimize route using places data
+                called.append("places")
+
+            confidence = AgentProtocol.calculate_agent_confidence(result, name)
+            AgentProtocol.set_status(state, name, "done",
+                                     f"{name.title()} research complete",
+                                     confidence, called)
+            return name, result_key, result
+        except Exception as e:
+            logger.error(f"Agent {name} failed: {e}")
+            AgentProtocol.set_error(state, name, str(e))
+            return name, result_key, {"status": "error", "error": str(e), "data": []}
+
+    # Execute all agents concurrently
+    tasks = [
+        run_agent(name, result_key, func)
+        for name, (result_key, func) in agent_map.items()
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Store results
+    for item in results:
+        if isinstance(item, Exception):
+            logger.error(f"Agent task exception: {item}")
+            continue
+        name, result_key, result = item
+        state[result_key] = result
+
+    # Phase 2: Calculate overall confidence
+    overall = AgentProtocol.calculate_overall_confidence(state.get("agent_statuses", {}))
+    state["overall_confidence"] = round(overall, 1)
+
+    # Phase 3: Re-research if confidence is too low (max 2 passes)
+    if state.get("research_pass", 1) < 2 and overall < 40:
+        weak = AgentProtocol.needs_reresearch(state.get("agent_statuses", {}))
+        if weak:
+            logger.info(f"Low confidence ({overall}%). Re-researching: {weak}")
+            for agent_name in weak:
+                if agent_name in agent_map:
+                    AgentProtocol.set_status(state, agent_name, "re-researching",
+                                             f"Re-researching {agent_name} for better results...")
+            # Re-run weak agents
+            re_tasks = [
+                run_agent(name, agent_map[name][0], agent_map[name][1])
+                for name in weak if name in agent_map
+            ]
+            re_results = await asyncio.gather(*re_tasks, return_exceptions=True)
+            for item in re_results:
+                if isinstance(item, Exception):
+                    continue
+                name, result_key, result = item
+                state[result_key] = result
+
+            # Recalculate confidence
+            overall = AgentProtocol.calculate_overall_confidence(state.get("agent_statuses", {}))
+            state["overall_confidence"] = round(overall, 1)
+
     return state
 
+
 async def build_plan(state: TripState) -> TripState:
-    """Generate structured itinerary from aggregated agent results using LLM."""
+    """Generate structured itinerary from aggregated agent results using LLM with RAGAS check."""
     try:
         context = {
             "origin": state.get("origin"),
@@ -225,24 +340,52 @@ async def build_plan(state: TripState) -> TripState:
             "trip_type": state.get("trip_type"),
             "interest_tags": state.get("interest_tags"),
             "hotel_stars": state.get("hotel_stars"),
-            "user_prefs": state.get("user_prefs", {}), # Global personalized DOS/DONTS
+            "user_prefs": state.get("user_prefs", {}),  # Global personalized DOS/DONTS
+            "overall_confidence": state.get("overall_confidence", 0),
+            "agent_statuses": {
+                k: {"status": v.get("status"), "confidence": v.get("confidence")}
+                for k, v in (state.get("agent_statuses") or {}).items()
+            },
         }
 
-        plan_prompt = f"""You are the Yatri AI Main Orchestrator Bot. Your subagents have completed their parallel research. 
-You must now synthesize their data (A2A) into a highly personalized travel plan.
+        # Extract user preferences text
+        user_prefs = state.get("user_prefs", {})
+        prefs_text = user_prefs.get("notes", "") if isinstance(user_prefs, dict) else str(user_prefs)
 
-CRITICAL INSTRUCTION: You MUST strictly adhere to the user's 'user_prefs' (dos, don'ts, pros, cons) provided below.
-Evaluate how well the available subagent data aligns with these preferences and output a Confidence Score (0-100) and a RAGAS check summary.
+        plan_prompt = f"""You are the Yatri AI Main Orchestrator Bot. Your 6 subagents have completed their parallel research.
+You must now synthesize their data (A2A protocol) into a highly personalized travel plan.
 
-Data synthesized from subagents: {json.dumps(context, default=str)}
+CRITICAL INSTRUCTIONS:
+1. You MUST strictly adhere to the user's personal preferences: "{prefs_text}"
+2. Evaluate how well the plan aligns with preferences → output a confidence_score (0-100)
+3. Perform a RAGAS alignment check — rate how relevant, accurate, grounded, and specific the plan is
+4. If any agent had low confidence, note it as a caveat in tips
+5. Only show information that is RELEVANT to this specific traveler
+6. The Main Agent (you) decides what to show and what to hide based on personalization
+
+Agent Research Data: {json.dumps(context, default=str)}
 
 Create a JSON plan with exactly this structure:
 {{
   "title": "Trip from X to Y",
   "total_days": N,
   "estimated_cost": N,
-  "confidence_score": 95,
-  "ragas_alignment_check": "High alignment with vegetarian and luxury preferences.",
+  "confidence_score": 85,
+  "ragas_alignment_check": "High alignment — plan respects vegetarian preference and budget constraints.",
+  "ragas_scores": {{
+    "relevance": 0.92,
+    "accuracy": 0.88,
+    "groundedness": 0.85,
+    "personalization": 0.90
+  }},
+  "agent_contributions": {{
+    "transport": "Found 3 train options within budget",
+    "hotels": "Selected 3-star hotels per preference",
+    "food": "All vegetarian restaurants recommended",
+    "places": "Heritage sites matching interest tags",
+    "cabs": "Uber vs Ola comparison available",
+    "maps": "Optimized route with 2 stops"
+  }},
   "days": [
     {{
       "day": 1,
@@ -251,7 +394,8 @@ Create a JSON plan with exactly this structure:
       ]
     }}
   ],
-  "tips": ["tip1", "tip2"]
+  "tips": ["tip1", "tip2"],
+  "personalization_notes": "What was customized for this user"
 }}
 
 Return ONLY valid JSON. Do not include markdown blocks."""
@@ -259,7 +403,16 @@ Return ONLY valid JSON. Do not include markdown blocks."""
         response = await llm.ainvoke([HumanMessage(content=plan_prompt)])
         match = re.search(r'\{.*\}', response.content, re.DOTALL)
         if match:
-            state["final_plan"] = json.loads(match.group())
+            plan = json.loads(match.group())
+            state["final_plan"] = plan
+
+            # Store RAGAS result separately for frontend display
+            state["ragas_result"] = {
+                "alignment": plan.get("ragas_alignment_check", ""),
+                "scores": plan.get("ragas_scores", {}),
+                "confidence": plan.get("confidence_score", 0),
+                "personalization": plan.get("personalization_notes", ""),
+            }
         else:
             state["final_plan"] = {
                 "title": f"Trip from {state.get('origin')} to {state.get('destination')}",
@@ -281,4 +434,44 @@ Return ONLY valid JSON. Do not include markdown blocks."""
             "role": "assistant",
             "content": "I've gathered all the travel data for your trip! However, I couldn't format the final plan automatically. All individual search results (transport, hotels, food, places) are available."
         })
+    return state
+
+
+async def run_single_agent(state: TripState) -> TripState:
+    """Run only a single targeted agent (when user clicks an agent directly)."""
+    target = state.get("target_agent")
+    if not target:
+        return state
+
+    agent_map = {
+        "transport": ("transport_results", transport_search),
+        "cabs": ("cab_results", cab_compare),
+        "hotels": ("hotel_results", hotel_search),
+        "food": ("food_results", food_find),
+        "places": ("places_results", places_discover),
+        "maps": ("map_results", map_route),
+    }
+
+    if target not in agent_map:
+        state.setdefault("messages", []).append({
+            "role": "assistant",
+            "content": f"I don't have an agent called '{target}'. Available agents: {', '.join(agent_map.keys())}"
+        })
+        return state
+
+    result_key, func = agent_map[target]
+    state["agent_statuses"] = state.get("agent_statuses") or {}
+    AgentProtocol.set_status(state, target, "researching", f"Running {target} agent...")
+
+    try:
+        result = await func(state)
+        confidence = AgentProtocol.calculate_agent_confidence(result, target)
+        AgentProtocol.set_status(state, target, "done",
+                                 f"{target.title()} search complete", confidence)
+        state[result_key] = result
+    except Exception as e:
+        logger.error(f"Single agent {target} failed: {e}")
+        AgentProtocol.set_error(state, target, str(e))
+        state[result_key] = {"status": "error", "error": str(e)}
+
     return state

@@ -1,5 +1,18 @@
 from typing import TypedDict, List, Optional, Dict, Any
 
+
+class AgentStatus(TypedDict, total=False):
+    """Status of a single sub-agent."""
+    status: str          # "idle" | "researching" | "done" | "error" | "re-researching"
+    message: str         # Human-readable status message
+    confidence: float    # 0-100, how confident this agent is in its results
+    started_at: Optional[str]
+    finished_at: Optional[str]
+    data: Optional[Any]  # The agent's raw result data
+    error: Optional[str]
+    called_agents: Optional[List[str]]  # A2A: which other agents this one consulted
+
+
 class TripState(TypedDict):
     trip_id: str
     user_id: str
@@ -28,6 +41,13 @@ class TripState(TypedDict):
 
     # Chat history
     messages: List[Dict[str, str]]
+
+    # ─── Agent Orchestration (NEW) ───
+    agent_statuses: Optional[Dict[str, AgentStatus]]
+    overall_confidence: Optional[float]     # 0-100 aggregated
+    ragas_result: Optional[Dict[str, Any]]  # RAGAS alignment check result
+    research_pass: Optional[int]            # Which pass of research (1=first, 2=re-research)
+    target_agent: Optional[str]             # If set, only run this single agent
 
     # Agent results
     transport_results: Optional[Dict]

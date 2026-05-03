@@ -52,6 +52,9 @@ export default function ChatPage() {
   const [sessionId] = useState(() => `session_${Date.now()}`);
   const [showSettings, setShowSettings] = useState(false);
   const [sidebarView, setSidebarView] = useState<'agents' | 'settings' | 'history'>('agents');
+  const [agentStatuses, setAgentStatuses] = useState<Record<string, any>>({});
+  const [overallConfidence, setOverallConfidence] = useState<number | null>(null);
+  const [ragasResult, setRagasResult] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { theme, setTheme } = useThemeStore();
 
@@ -63,7 +66,7 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async (message: string, action?: string) => {
+  const sendMessage = async (message: string, action?: string, targetAgent?: string) => {
     if ((!message.trim() && !action) || isLoading) return;
     
     if (message.trim()) {
@@ -78,6 +81,7 @@ export default function ChatPage() {
         message: message || 'plan_trip', 
         session_id: sessionId,
         action: action || undefined,
+        target_agent: targetAgent || undefined,
         user_prefs: { notes: typeof window !== 'undefined' ? localStorage.getItem('yatri_user_prefs') || '' : '' }
       });
       
@@ -95,6 +99,15 @@ export default function ChatPage() {
       }
       if (response.data.chat_mode) {
         setChatMode(response.data.chat_mode);
+      }
+      if (response.data.agent_statuses) {
+        setAgentStatuses(response.data.agent_statuses);
+      }
+      if (response.data.overall_confidence != null) {
+        setOverallConfidence(response.data.overall_confidence);
+      }
+      if (response.data.ragas_result) {
+        setRagasResult(response.data.ragas_result);
       }
     } catch (error) {
       console.error("Chat API Error:", error);
@@ -222,27 +235,48 @@ export default function ChatPage() {
                   { id: 'places', icon: MapPin, label: 'Places', desc: 'Tourist spots & attractions', color: '#be123c', bg: '#ffe4e6' },
                   { id: 'maps', icon: Navigation, label: 'Maps', desc: 'Optimized route planning', color: '#0e7490', bg: '#cffafe' },
                 ].map((stage, i) => {
-                  const isActive = chatMode === 'planning' && collectedEntries.length > 2; // Simulated active state
+                  const status = agentStatuses[stage.id];
+                  const agentState = status?.status || 'idle';
+                  const confidence = status?.confidence || 0;
                   return (
                     <button 
                       key={i} 
                       onClick={() => {
-                        setInput(`I need help with ${stage.label.toLowerCase()}...`);
-                        document.querySelector('input')?.focus();
+                        sendMessage(`I need help with ${stage.label.toLowerCase()}...`, undefined, stage.id);
                       }}
                       className="w-full text-left p-3 rounded-xl transition-all hover:scale-[1.02]" 
-                      style={{ border: '1px solid var(--border-main)', backgroundColor: 'var(--bg-surface)' }}
+                      style={{ border: `1px solid ${agentState === 'done' ? 'var(--accent-primary)' : 'var(--border-main)'}`, backgroundColor: 'var(--bg-surface)' }}
                     >
                       <div className="flex items-center gap-3 relative">
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center relative" style={{ backgroundColor: stage.bg }}>
                           <stage.icon className="h-5 w-5" style={{ color: stage.color }} />
-                          {isActive && (
+                          {agentState === 'researching' && (
                             <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-pulse" />
                           )}
+                          {agentState === 're-researching' && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full border-2 border-white animate-pulse" />
+                          )}
+                          {agentState === 'done' && (
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                              <CheckCircle2 className="h-2.5 w-2.5 text-white" />
+                            </span>
+                          )}
+                          {agentState === 'error' && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white" />
+                          )}
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold" style={{ letterSpacing: '-0.2px', color: 'var(--text-primary)' }}>{stage.label}</p>
-                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{stage.desc}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold" style={{ letterSpacing: '-0.2px', color: 'var(--text-primary)' }}>{stage.label}</p>
+                            {agentState === 'done' && confidence > 0 && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: confidence >= 70 ? '#d1fae5' : '#fef3c7', color: confidence >= 70 ? '#047857' : '#b45309' }}>
+                                {Math.round(confidence)}%
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                            {agentState === 'researching' ? 'Searching...' : agentState === 're-researching' ? 'Re-researching...' : agentState === 'done' ? (status?.message || 'Complete') : agentState === 'error' ? 'Failed' : stage.desc}
+                          </p>
                         </div>
                       </div>
                     </button>
@@ -449,23 +483,41 @@ export default function ChatPage() {
                       <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--accent-primary)', animationDelay: '150ms' }} />
                       <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--accent-primary)', animationDelay: '300ms' }} />
                     </div>
-                    <span className="text-xs font-bold" style={{ color: 'var(--accent-dark)' }}>RESEARCHING IN PARALLEL...</span>
+                    <span className="text-xs font-bold" style={{ color: 'var(--accent-dark)' }}>
+                      {chatMode === 'planning' ? 'AGENTS RESEARCHING IN PARALLEL...' : 'THINKING...'}
+                    </span>
                   </div>
-                  <div className="space-y-2">
-                    {[
-                      { num: 1, label: 'Routing optimal map path...', icon: '🗺️' },
-                      { num: 2, label: 'Fetching top 3-5 hotels...', icon: '🏨' },
-                      { num: 3, label: 'Checking cab APIs for rates...', icon: '🚕' },
-                    ].map((step, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        <span className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center font-bold text-[10px]" style={{ backgroundColor: 'var(--accent-light)', color: 'var(--accent-dark)' }}>{step.num}</span>
-                        <span className="animate-pulse">{step.icon} {step.label}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {chatMode === 'planning' && (
+                    <div className="space-y-2">
+                      {[
+                        { id: 'transport', num: 1, label: 'Transport routes & prices', icon: '🚃' },
+                        { id: 'hotels', num: 2, label: 'Hotels within budget', icon: '🏨' },
+                        { id: 'cabs', num: 3, label: 'Cab fare comparison', icon: '🚕' },
+                        { id: 'food', num: 4, label: 'Restaurant recommendations', icon: '🍽️' },
+                        { id: 'places', num: 5, label: 'Places to visit', icon: '📍' },
+                        { id: 'maps', num: 6, label: 'Optimized route map', icon: '🗺️' },
+                      ].map((step, i) => {
+                        const s = agentStatuses[step.id];
+                        const isDone = s?.status === 'done';
+                        return (
+                          <div key={i} className="flex items-center gap-2 text-xs" style={{ color: isDone ? 'var(--accent-dark)' : 'var(--text-secondary)' }}>
+                            <span className={`flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center font-bold text-[10px] ${isDone ? '' : 'animate-pulse'}`}
+                              style={{ backgroundColor: isDone ? '#d1fae5' : 'var(--accent-light)', color: 'var(--accent-dark)' }}>
+                              {isDone ? '✓' : step.num}
+                            </span>
+                            <span className={isDone ? '' : 'animate-pulse'}>{step.icon} {isDone ? `${step.label} ✓` : `${step.label}...`}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                   <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px dashed var(--border-main)' }}>
-                    <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>Confidence Score: Evaluating</span>
-                    <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>RAGAS checks: Pending</span>
+                    <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
+                      Confidence: {overallConfidence != null ? `${overallConfidence}%` : 'Evaluating...'}
+                    </span>
+                    <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
+                      RAGAS: {ragasResult ? 'Checked ✓' : 'Pending...'}
+                    </span>
                   </div>
                 </div>
               </div>
