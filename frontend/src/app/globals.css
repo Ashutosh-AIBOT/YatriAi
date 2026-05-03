@@ -1,18 +1,125 @@
 @import "tailwindcss";
 
 /* ============================================
-   YATRI AI — Clay Design System v2.0
-   Clean white canvas, emerald green accent,
-   premium typography, smooth micro-animations.
-   Inspired by Clay.com aesthetics.
+   YATRI AI — Clay Design System v3.0
+   Soft, eye-friendly themes — NO full-bright white.
+   3 selectable palettes: Warm Cream, Soft Sage, Cool Mist
+   Premium typography, smooth micro-animations.
    ============================================ */
 
-@theme {
-  /* Primary */
-  --color-warm-cream: #faf9f7;
-  --color-clay-black: #0a0a0a;
-  --color-pure-white: #ffffff;
+/* ═══════════════════════════════════════════
+   THEME 1: Warm Cream (Default)
+   Cozy, inviting tones with emerald accents
+   ═══════════════════════════════════════════ */
+:root,
+[data-theme="warm-cream"] {
+  --bg-primary: #faf8f5;
+  --bg-secondary: #f5f2ed;
+  --bg-surface: #fefcf9;
+  --bg-input: #fefcf9;
+  --bg-sidebar: #f3f0ea;
+  --bg-chat: #faf8f5;
+  --bg-nav: rgba(250, 248, 245, 0.92);
+  --text-primary: #1a1814;
+  --text-secondary: #6b6560;
+  --text-muted: #9e9890;
+  --text-faint: #b8b2aa;
+  --border-main: #e8e2d9;
+  --border-light: #f0ece5;
+  --accent-primary: #10b981;
+  --accent-hover: #059669;
+  --accent-light: #d1fae5;
+  --accent-dark: #047857;
+  --bubble-user-bg: #1a1814;
+  --bubble-user-text: #faf8f5;
+  --bubble-ai-bg: #f0ece5;
+  --bubble-ai-text: #1a1814;
+  --bubble-ai-border: #e8e2d9;
+  --card-bg: #fefcf9;
+  --card-border: #e8e2d9;
+  --card-hover-shadow: rgba(26, 24, 20, 0.06);
+  --input-focus-ring: rgba(16, 185, 129, 0.18);
+  --selection-bg: #34d399;
+  --selection-text: #1a1814;
+  --scrollbar-track: #f0ece5;
+  --scrollbar-thumb: #d4cec5;
+}
 
+/* ═══════════════════════════════════════════
+   THEME 2: Soft Sage
+   Gentle green-grey tones — calming & elegant
+   ═══════════════════════════════════════════ */
+[data-theme="soft-sage"] {
+  --bg-primary: #f5f7f5;
+  --bg-secondary: #eef2ee;
+  --bg-surface: #fafcfa;
+  --bg-input: #fafcfa;
+  --bg-sidebar: #e9efe9;
+  --bg-chat: #f5f7f5;
+  --bg-nav: rgba(245, 247, 245, 0.92);
+  --text-primary: #1b2420;
+  --text-secondary: #5a6b62;
+  --text-muted: #8a9b92;
+  --text-faint: #a8b5ae;
+  --border-main: #d4e0d6;
+  --border-light: #e4ede6;
+  --accent-primary: #2d9d78;
+  --accent-hover: #1d8465;
+  --accent-light: #c8f0de;
+  --accent-dark: #177255;
+  --bubble-user-bg: #1b2420;
+  --bubble-user-text: #f5f7f5;
+  --bubble-ai-bg: #e4ede6;
+  --bubble-ai-text: #1b2420;
+  --bubble-ai-border: #d4e0d6;
+  --card-bg: #fafcfa;
+  --card-border: #d4e0d6;
+  --card-hover-shadow: rgba(27, 36, 32, 0.06);
+  --input-focus-ring: rgba(45, 157, 120, 0.18);
+  --selection-bg: #5dd9a8;
+  --selection-text: #1b2420;
+  --scrollbar-track: #e4ede6;
+  --scrollbar-thumb: #c0d0c4;
+}
+
+/* ═══════════════════════════════════════════
+   THEME 3: Cool Mist
+   Soft blue-grey — modern & professional
+   ═══════════════════════════════════════════ */
+[data-theme="cool-mist"] {
+  --bg-primary: #f5f7fa;
+  --bg-secondary: #edf0f5;
+  --bg-surface: #fafbfd;
+  --bg-input: #fafbfd;
+  --bg-sidebar: #e8ecf2;
+  --bg-chat: #f5f7fa;
+  --bg-nav: rgba(245, 247, 250, 0.92);
+  --text-primary: #171c24;
+  --text-secondary: #555f72;
+  --text-muted: #8791a5;
+  --text-faint: #a5aebb;
+  --border-main: #d5dbe5;
+  --border-light: #e5eaf0;
+  --accent-primary: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-light: #dbeafe;
+  --accent-dark: #1d4ed8;
+  --bubble-user-bg: #171c24;
+  --bubble-user-text: #f5f7fa;
+  --bubble-ai-bg: #e5eaf0;
+  --bubble-ai-text: #171c24;
+  --bubble-ai-border: #d5dbe5;
+  --card-bg: #fafbfd;
+  --card-border: #d5dbe5;
+  --card-hover-shadow: rgba(23, 28, 36, 0.06);
+  --input-focus-ring: rgba(59, 130, 246, 0.18);
+  --selection-bg: #93c5fd;
+  --selection-text: #171c24;
+  --scrollbar-track: #e5eaf0;
+  --scrollbar-thumb: #bfc8d6;
+}
+
+@theme {
   /* Emerald Green Accent (Clay style) */
   --color-emerald-400: #34d399;
   --color-emerald-500: #10b981;
@@ -35,7 +142,10 @@
   --color-blueberry-800: #01418d;
   --color-dragonfruit: #e040a0;
 
-  /* Neutrals */
+  /* Legacy compat — mapped to theme vars */
+  --color-warm-cream: #faf9f7;
+  --color-clay-black: #0a0a0a;
+  --color-pure-white: #ffffff;
   --color-neutral-50: #fafafa;
   --color-neutral-100: #f5f5f5;
   --color-neutral-200: #e5e5e5;
@@ -46,54 +156,49 @@
   --color-neutral-700: #404040;
   --color-neutral-800: #262626;
   --color-neutral-900: #171717;
-
-  /* Surface & Border */
   --color-oat-border: #e5e5e5;
   --color-oat-light: #f5f5f5;
   --color-cool-border: #e6e8ec;
-
-  /* Warm legacy compat */
   --color-warm-silver: #9f9b93;
   --color-warm-charcoal: #55534e;
   --color-dark-charcoal: #333333;
-  --color-oat-border-legacy: #dad4c8;
-  --color-oat-light-legacy: #eee9df;
 }
 
 /* ---- Base ---- */
 body {
-  background-color: var(--color-pure-white);
-  color: var(--color-clay-black);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ---- Selection ---- */
 ::selection {
-  background-color: var(--color-emerald-400);
-  color: var(--color-clay-black);
+  background-color: var(--selection-bg);
+  color: var(--selection-text);
 }
 
 /* ---- Clay Card ---- */
 .clay-card {
-  background: var(--color-pure-white);
-  border: 1px solid var(--color-oat-border);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 16px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .clay-card:hover {
-  box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 25px var(--card-hover-shadow);
   transform: translateY(-2px);
 }
 
 /* ---- Clay Card Dashed variant ---- */
 .clay-card-dashed {
-  background: var(--color-pure-white);
-  border: 1px dashed var(--color-oat-border);
+  background: var(--card-bg);
+  border: 1px dashed var(--card-border);
   border-radius: 16px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.03);
   transition: all 0.3s ease;
@@ -101,15 +206,15 @@ body {
 
 /* ---- Testimonial Card ---- */
 .testimonial-card {
-  background: var(--color-neutral-50);
-  border: 1px solid var(--color-oat-border);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-main);
   border-radius: 16px;
   padding: 32px;
   transition: all 0.3s ease;
 }
 
 .testimonial-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 12px var(--card-hover-shadow);
 }
 
 /* ---- Clay Button (Primary) ---- */
@@ -118,8 +223,8 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: var(--color-clay-black);
-  color: var(--color-pure-white);
+  background: var(--text-primary);
+  color: var(--bg-primary);
   border: none;
   border-radius: 8px;
   padding: 12px 24px;
@@ -131,7 +236,7 @@ body {
 }
 
 .clay-button:hover {
-  background: var(--color-neutral-800);
+  opacity: 0.88;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
@@ -142,8 +247,8 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: var(--color-emerald-500);
-  color: var(--color-pure-white);
+  background: var(--accent-primary);
+  color: #ffffff;
   border: none;
   border-radius: 8px;
   padding: 12px 24px;
@@ -155,7 +260,7 @@ body {
 }
 
 .clay-button-cta:hover {
-  background: var(--color-emerald-600);
+  background: var(--accent-hover);
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
 }
@@ -167,8 +272,8 @@ body {
   justify-content: center;
   gap: 8px;
   background: transparent;
-  color: var(--color-clay-black);
-  border: 1px solid var(--color-oat-border);
+  color: var(--text-primary);
+  border: 1px solid var(--border-main);
   border-radius: 8px;
   padding: 12px 24px;
   font-weight: 500;
@@ -179,8 +284,8 @@ body {
 }
 
 .clay-button-ghost:hover {
-  background: var(--color-neutral-50);
-  border-color: var(--color-neutral-300);
+  background: var(--bg-secondary);
+  border-color: var(--text-muted);
   transform: translateY(-1px);
 }
 
@@ -190,9 +295,9 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: var(--color-pure-white);
-  color: var(--color-clay-black);
-  border: 1px solid var(--color-oat-border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-main);
   border-radius: 999px;
   padding: 12px 28px;
   font-weight: 500;
@@ -204,18 +309,18 @@ body {
 }
 
 .clay-button-pill:hover {
-  background: var(--color-neutral-50);
-  border-color: var(--color-neutral-300);
+  background: var(--bg-secondary);
+  border-color: var(--text-muted);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 8px var(--card-hover-shadow);
 }
 
 /* ---- Clay Input ---- */
 .clay-input {
-  background: var(--color-pure-white);
-  border: 1px solid var(--color-oat-border);
+  background: var(--bg-input);
+  border: 1px solid var(--border-main);
   border-radius: 10px;
-  color: var(--color-clay-black);
+  color: var(--text-primary);
   padding: 14px 18px;
   font-size: 15px;
   width: 100%;
@@ -223,27 +328,27 @@ body {
 }
 
 .clay-input::placeholder {
-  color: var(--color-neutral-400);
+  color: var(--text-faint);
 }
 
 .clay-input:focus {
   outline: none;
-  border-color: var(--color-emerald-500);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--input-focus-ring);
 }
 
 /* ---- Section backgrounds using swatch palette ---- */
 .swatch-matcha { background-color: var(--color-matcha-800); color: white; }
 .swatch-slushie { background-color: var(--color-slushie-800); color: white; }
 .swatch-ube { background-color: var(--color-ube-800); color: white; }
-.swatch-lemon { background-color: var(--color-lemon-400); color: var(--color-clay-black); }
-.swatch-pomegranate { background-color: var(--color-pomegranate-400); color: var(--color-clay-black); }
+.swatch-lemon { background-color: var(--color-lemon-400); color: var(--text-primary); }
+.swatch-pomegranate { background-color: var(--color-pomegranate-400); color: var(--text-primary); }
 
 /* ---- Badge ---- */
 .clay-badge {
   display: inline-flex;
   align-items: center;
-  color: var(--color-emerald-600);
+  color: var(--accent-primary);
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -256,37 +361,36 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--color-neutral-400);
+  color: var(--text-muted);
 }
 
 /* ---- Chat Bubbles ---- */
 .bubble-user {
-  background: var(--color-clay-black);
-  color: var(--color-pure-white);
+  background: var(--bubble-user-bg);
+  color: var(--bubble-user-text);
   border-radius: 20px 20px 4px 20px;
   padding: 16px 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .bubble-assistant {
-  background: var(--color-neutral-50);
-  color: var(--color-clay-black);
-  border: 1px solid var(--color-oat-border);
+  background: var(--bubble-ai-bg);
+  color: var(--bubble-ai-text);
+  border: 1px solid var(--bubble-ai-border);
   border-radius: 20px 20px 20px 4px;
   padding: 16px 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
 /* ---- Nav ---- */
 .clay-nav {
-  background: var(--color-pure-white);
-  border-bottom: 1px solid var(--color-oat-border);
+  background: var(--bg-nav);
+  border-bottom: 1px solid var(--border-main);
   padding: 16px 24px;
   position: sticky;
   top: 0;
   z-index: 50;
   backdrop-filter: blur(12px);
-  background: rgba(255,255,255,0.9);
 }
 
 /* ---- Green Dot (Logo icon like Clay) ---- */
@@ -294,7 +398,7 @@ body {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background-color: var(--color-emerald-500);
+  background-color: var(--accent-primary);
   display: inline-block;
   flex-shrink: 0;
 }
@@ -303,7 +407,7 @@ body {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background-color: var(--color-emerald-500);
+  background-color: var(--accent-primary);
   display: inline-block;
   flex-shrink: 0;
 }
@@ -351,7 +455,7 @@ body {
 
 /* ---- Gradient Text ---- */
 .gradient-text {
-  background: linear-gradient(135deg, var(--color-emerald-500), var(--color-emerald-700));
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-dark));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -359,11 +463,11 @@ body {
 
 /* ---- Dashboard Preview Box ---- */
 .dashboard-preview {
-  background: var(--color-neutral-100);
-  border: 1px solid var(--color-oat-border);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-main);
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.06);
 }
 
 .dashboard-preview-header {
@@ -371,21 +475,21 @@ body {
   align-items: center;
   gap: 6px;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--color-oat-border);
-  background: var(--color-neutral-50);
+  border-bottom: 1px solid var(--border-main);
+  background: var(--bg-sidebar);
 }
 
 .preview-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--color-neutral-300);
+  background: var(--text-faint);
 }
 
 /* ---- FAQ Item ---- */
 .faq-item {
   padding: 24px 0;
-  border-bottom: 1px solid var(--color-oat-border);
+  border-bottom: 1px solid var(--border-main);
 }
 
 .faq-item:last-child {
@@ -395,33 +499,33 @@ body {
 .faq-question {
   font-size: 16px;
   font-weight: 600;
-  color: var(--color-clay-black);
+  color: var(--text-primary);
   margin-bottom: 8px;
   letter-spacing: -0.2px;
 }
 
 .faq-answer {
   font-size: 14px;
-  color: var(--color-neutral-500);
+  color: var(--text-secondary);
   line-height: 1.6;
 }
 
 /* ---- Pricing Card ---- */
 .pricing-card {
-  background: var(--color-pure-white);
-  border: 1px solid var(--color-oat-border);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 16px;
   padding: 32px;
   transition: all 0.3s ease;
 }
 
 .pricing-card:hover {
-  box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+  box-shadow: 0 8px 25px var(--card-hover-shadow);
 }
 
 .pricing-card-featured {
-  background: var(--color-clay-black);
-  color: var(--color-pure-white);
+  background: var(--text-primary);
+  color: var(--bg-primary);
   border: 1px solid transparent;
   border-radius: 16px;
   padding: 32px;
@@ -435,8 +539,8 @@ body {
 
 /* ---- Stat Card ---- */
 .stat-card {
-  background: var(--color-neutral-50);
-  border: 1px solid var(--color-oat-border);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-main);
   border-radius: 12px;
   padding: 20px 24px;
 }
@@ -445,15 +549,15 @@ body {
 .clay-divider {
   border: none;
   height: 1px;
-  background: var(--color-oat-border);
+  background: var(--border-main);
   margin: 0;
 }
 
 /* ---- Scrollbar ---- */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--color-neutral-100); }
-::-webkit-scrollbar-thumb { background: var(--color-neutral-300); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-neutral-400); }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 /* ---- Animations ---- */
 @keyframes fadeInUp {
@@ -538,7 +642,7 @@ body {
   font-weight: 600;
   letter-spacing: -2.5px;
   line-height: 1.05;
-  color: var(--color-clay-black);
+  color: var(--text-primary);
 }
 
 .heading-lg {
@@ -546,7 +650,7 @@ body {
   font-weight: 600;
   letter-spacing: -1.5px;
   line-height: 1.1;
-  color: var(--color-clay-black);
+  color: var(--text-primary);
 }
 
 .heading-md {
@@ -554,19 +658,19 @@ body {
   font-weight: 600;
   letter-spacing: -0.8px;
   line-height: 1.2;
-  color: var(--color-clay-black);
+  color: var(--text-primary);
 }
 
 .body-text {
   font-size: 16px;
   line-height: 1.7;
-  color: var(--color-neutral-500);
+  color: var(--text-secondary);
 }
 
 .body-text-sm {
   font-size: 14px;
   line-height: 1.6;
-  color: var(--color-neutral-500);
+  color: var(--text-secondary);
 }
 
 /* ---- Checkmark List ---- */
@@ -586,8 +690,99 @@ body {
 
 .check-list li::before {
   content: '✓';
-  color: var(--color-emerald-500);
+  color: var(--accent-primary);
   font-weight: 700;
   font-size: 14px;
   flex-shrink: 0;
+}
+
+/* ---- Theme Selector ---- */
+.theme-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border-main);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.theme-swatch:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.theme-swatch.active {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--input-focus-ring);
+}
+
+.theme-swatch-cream { background: #faf8f5; }
+.theme-swatch-sage { background: #e9efe9; }
+.theme-swatch-mist { background: #e8ecf2; }
+
+/* ---- Settings Panel ---- */
+.settings-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-main);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+}
+
+/* ---- Admin Dashboard ---- */
+.admin-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 24px;
+  transition: all 0.2s ease;
+}
+
+.admin-card:hover {
+  box-shadow: 0 4px 16px var(--card-hover-shadow);
+}
+
+.log-line {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 2px 0;
+  color: var(--text-secondary);
+}
+
+.log-line-error {
+  color: #ef4444;
+}
+
+.log-line-warning {
+  color: #f59e0b;
+}
+
+.log-line-info {
+  color: var(--accent-primary);
+}
+
+/* ---- Editable Plan Card ---- */
+.plan-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 20px;
+  transition: all 0.2s ease;
+  cursor: default;
+}
+
+.plan-card:hover {
+  box-shadow: 0 4px 12px var(--card-hover-shadow);
+}
+
+.plan-card-editing {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--input-focus-ring);
+}
+
+.plan-card-editable:hover {
+  border-color: var(--accent-primary);
+  cursor: pointer;
 }
