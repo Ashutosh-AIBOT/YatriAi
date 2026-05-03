@@ -33,7 +33,7 @@ Every Git commit MUST follow this smart tag convention so that changes are insta
   - `ES` = Error Solving (Bug fixes, pipeline repairs)
   - `UT` = Unit Testing (Adding or modifying tests)
   - `RF` = Refactoring (Optimizations, Big O fixes)
-- **SEQUENCE:** A padded 3-digit number starting at `001`, incremented for each commit in that domain/action (e.g., `001`, `002`).
+- **SEQUENCE:** A padded 3-digit number representing the GLOBAL total commit count. This number NEVER resets. It ALWAYS increments by +1 for every single commit across the entire repository (e.g., if total commits are 17, the next tag must be 018).
 
 **Examples:**
 
