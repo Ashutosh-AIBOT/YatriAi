@@ -374,6 +374,25 @@ export default function ChatPage() {
                           💰 Estimated Cost: ₹{msg.data.estimated_cost.toLocaleString()}
                         </p>
                       )}
+                      
+                      {msg.data.confidence_score && (
+                        <div className="mb-4 p-3 rounded-lg" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Personalization Confidence</span>
+                            <span className="text-xs font-bold" style={{ color: msg.data.confidence_score >= 80 ? '#10b981' : '#f59e0b' }}>
+                              {msg.data.confidence_score}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                            <div className="h-1.5 rounded-full" style={{ width: `${msg.data.confidence_score}%`, backgroundColor: msg.data.confidence_score >= 80 ? '#10b981' : '#f59e0b' }}></div>
+                          </div>
+                          {msg.data.ragas_alignment_check && (
+                            <p className="text-[10px] leading-tight" style={{ color: 'var(--text-muted)' }}>
+                              <span className="font-semibold text-[10px]">RAGAS Check:</span> {msg.data.ragas_alignment_check}
+                            </p>
+                          )}
+                        </div>
+                      )}
                       {msg.data.days && msg.data.days.map((day: any, di: number) => (
                         <div key={di} className="mb-3 p-3 rounded-lg plan-card plan-card-editable">
                           <div className="flex items-center justify-between mb-1">

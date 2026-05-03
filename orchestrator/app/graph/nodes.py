@@ -225,17 +225,24 @@ async def build_plan(state: TripState) -> TripState:
             "trip_type": state.get("trip_type"),
             "interest_tags": state.get("interest_tags"),
             "hotel_stars": state.get("hotel_stars"),
+            "user_prefs": state.get("user_prefs", {}), # Global personalized DOS/DONTS
         }
 
-        plan_prompt = f"""You are a travel planning AI. Based on the following search results, create a structured day-by-day travel itinerary in JSON format.
+        plan_prompt = f"""You are the Yatri AI Main Orchestrator Bot. Your subagents have completed their parallel research. 
+You must now synthesize their data (A2A) into a highly personalized travel plan.
 
-Travel Data: {json.dumps(context, default=str)}
+CRITICAL INSTRUCTION: You MUST strictly adhere to the user's 'user_prefs' (dos, don'ts, pros, cons) provided below.
+Evaluate how well the available subagent data aligns with these preferences and output a Confidence Score (0-100) and a RAGAS check summary.
 
-Create a JSON plan with this structure:
+Data synthesized from subagents: {json.dumps(context, default=str)}
+
+Create a JSON plan with exactly this structure:
 {{
   "title": "Trip from X to Y",
   "total_days": N,
   "estimated_cost": N,
+  "confidence_score": 95,
+  "ragas_alignment_check": "High alignment with vegetarian and luxury preferences.",
   "days": [
     {{
       "day": 1,
@@ -247,7 +254,7 @@ Create a JSON plan with this structure:
   "tips": ["tip1", "tip2"]
 }}
 
-Return ONLY valid JSON."""
+Return ONLY valid JSON. Do not include markdown blocks."""
 
         response = await llm.ainvoke([HumanMessage(content=plan_prompt)])
         match = re.search(r'\{.*\}', response.content, re.DOTALL)
