@@ -12,12 +12,12 @@ def build_trip_graph():
     g.add_node("dispatch", dispatch_agents)
     g.add_node("plan",     build_plan)
 
-    g.set_entry_point("route")
-    g.add_edge("route", "extract")
+    g.set_entry_point("extract")
     g.add_conditional_edges("extract", should_collect_more, {
         "collect": "route",
         "dispatch": "dispatch"
     })
+    g.add_edge("route", END)
     g.add_edge("dispatch", "plan")
     g.add_edge("plan", END)
     return g.compile()
