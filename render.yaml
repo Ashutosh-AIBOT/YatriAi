@@ -1,0 +1,61 @@
+services:
+  # 1. Frontend Service (Next.js)
+  - type: web
+    name: yatraai-frontend
+    env: node
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm run start
+    envVars:
+      - key: NEXT_PUBLIC_GATEWAY_URL
+        value: https://yatraai-gateway.onrender.com/api/v1
+      - key: NEXT_PUBLIC_NOTIFICATION_URL
+        value: https://yatraai-notification.onrender.com
+
+  # 2. AI Orchestrator (FastAPI)
+  - type: web
+    name: yatraai-orchestrator
+    env: python
+    buildCommand: cd orchestrator && pip install -r requirements.txt
+    startCommand: cd orchestrator && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false # Requires external Neon/Supabase DB URL
+      - key: REDIS_URL
+        sync: false # Requires external Upstash Redis
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        sync: false # Requires external Upstash Kafka
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+
+  # 3. Notification Service (Node.js/WebSocket)
+  - type: web
+    name: yatraai-notification
+    env: node
+    buildCommand: cd notification && npm install
+    startCommand: cd notification && node src/server.js
+    envVars:
+      - key: JWT_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        sync: false
+
+  # 4. Gateway Service (Spring Boot)
+  - type: web
+    name: yatraai-gateway
+    env: docker
+    dockerfilePath: ./gateway/Dockerfile
+    envVars:
+      - key: POSTGRES_URL
+        sync: false
+      - key: POSTGRES_USER
+        sync: false
+      - key: POSTGRES_PASSWORD
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
