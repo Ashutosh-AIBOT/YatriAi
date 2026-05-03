@@ -8,7 +8,7 @@ export const initSocket = (): Socket => {
 
   const token = useAuthStore.getState().accessToken;
   
-  socket = io(process.env.NEXT_PUBLIC_NOTIFICATION_URL || 'http://localhost:3001', {
+  socket = io(process.env.NEXT_PUBLIC_NOTIFICATION_URL || '', {
     auth: {
       token,
     },
