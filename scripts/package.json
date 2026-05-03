@@ -1,0 +1,8 @@
+{
+  "name": "yatra-scripts",
+  "version": "1.0.0",
+  "description": "Scripts for Yatra AI infrastructure",
+  "dependencies": {
+    "kafkajs": "^2.2.4"
+  }
+}
