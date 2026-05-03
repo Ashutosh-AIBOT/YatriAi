@@ -15,16 +15,16 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--color-pure-white)' }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* Nav */}
       <nav className="clay-nav flex items-center justify-between container-wide">
-        <Link href="/" className="flex items-center gap-2" style={{ color: 'var(--color-neutral-600)' }}>
+        <Link href="/" className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Back</span>
         </Link>
         <div className="flex items-center gap-3">
           <span className="green-dot" />
-          <span className="font-semibold text-sm" style={{ letterSpacing: '-0.3px', color: 'var(--color-clay-black)' }}>Yatri AI</span>
+          <span className="font-semibold text-sm" style={{ letterSpacing: '-0.3px', color: 'var(--text-primary)' }}>Yatri AI</span>
         </div>
       </nav>
 
@@ -34,17 +34,17 @@ export default function Register() {
           <div className="clay-card p-10">
             <div className="text-center mb-8">
               <span className="clay-badge mb-4 inline-block">JOIN YATRI AI</span>
-              <h1 className="text-3xl font-semibold mb-2" style={{ letterSpacing: '-0.8px', color: 'var(--color-clay-black)' }}>
+              <h1 className="text-3xl font-semibold mb-2" style={{ letterSpacing: '-0.8px', color: 'var(--text-primary)' }}>
                 Create Account
               </h1>
-              <p className="text-sm" style={{ color: 'var(--color-neutral-400)' }}>Start your AI-powered travel journey</p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Start your AI-powered travel journey</p>
             </div>
 
             <form onSubmit={handleRegister} className="space-y-5">
               <div>
                 <label className="clay-label mb-2 block">Full Name</label>
                 <div className="relative">
-                  <User className="absolute left-4 top-3.5 h-5 w-5" style={{ color: 'var(--color-neutral-300)' }} />
+                  <User className="absolute left-4 top-3.5 h-5 w-5" style={{ color: 'var(--text-faint)' }} />
                   <input 
                     type="text" 
                     value={name}
@@ -58,7 +58,7 @@ export default function Register() {
               <div>
                 <label className="clay-label mb-2 block">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-3.5 h-5 w-5" style={{ color: 'var(--color-neutral-300)' }} />
+                  <Mail className="absolute left-4 top-3.5 h-5 w-5" style={{ color: 'var(--text-faint)' }} />
                   <input 
                     type="email" 
                     value={email}
@@ -72,7 +72,7 @@ export default function Register() {
               <div>
                 <label className="clay-label mb-2 block">Password</label>
                 <div className="relative">
-                  <KeyRound className="absolute left-4 top-3.5 h-5 w-5" style={{ color: 'var(--color-neutral-300)' }} />
+                  <KeyRound className="absolute left-4 top-3.5 h-5 w-5" style={{ color: 'var(--text-faint)' }} />
                   <input 
                     type="password" 
                     value={password}
@@ -89,10 +89,10 @@ export default function Register() {
               </button>
             </form>
 
-            <div className="text-center mt-6" style={{ borderTop: '1px solid var(--color-oat-border)', paddingTop: '20px' }}>
-              <p className="text-sm" style={{ color: 'var(--color-neutral-400)' }}>
+            <div className="text-center mt-6" style={{ borderTop: '1px solid var(--border-main)', paddingTop: '20px' }}>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                 Already have an account?{' '}
-                <Link href="/login" className="font-medium" style={{ color: 'var(--color-emerald-600)' }}>
+                <Link href="/login" className="font-medium" style={{ color: 'var(--accent-hover)' }}>
                   Sign In
                 </Link>
               </p>

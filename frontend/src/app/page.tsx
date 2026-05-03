@@ -20,21 +20,21 @@ const staggerContainer = {
 
 export default function Home() {
   return (
-    <main className="min-h-screen" style={{ backgroundColor: 'var(--color-pure-white)' }}>
+    <main className="min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* ═══════════════ NAV ═══════════════ */}
       <nav className="clay-nav flex items-center justify-between container-wide">
         <div className="flex items-center gap-3">
           <span className="green-dot-lg" />
-          <span className="font-semibold text-lg" style={{ letterSpacing: '-0.5px', color: 'var(--color-clay-black)' }}>Yatri AI</span>
+          <span className="font-semibold text-lg" style={{ letterSpacing: '-0.5px', color: 'var(--text-primary)' }}>Yatri AI</span>
         </div>
         <div className="hidden md:flex items-center gap-8">
-          <a href="#features" className="text-sm font-medium" style={{ color: 'var(--color-neutral-600)' }}>Features</a>
-          <a href="#agents" className="text-sm font-medium" style={{ color: 'var(--color-neutral-600)' }}>Agents</a>
-          <a href="#testimonials" className="text-sm font-medium" style={{ color: 'var(--color-neutral-600)' }}>Testimonials</a>
-          <a href="#faq" className="text-sm font-medium" style={{ color: 'var(--color-neutral-600)' }}>FAQ</a>
+          <a href="#features" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Features</a>
+          <a href="#agents" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Agents</a>
+          <a href="#testimonials" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Testimonials</a>
+          <a href="#faq" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>FAQ</a>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/login" className="text-sm font-medium" style={{ color: 'var(--color-neutral-600)', padding: '8px 16px' }}>
+          <Link href="/login" className="text-sm font-medium" style={{ color: 'var(--text-secondary)', padding: '8px 16px' }}>
             Sign in
           </Link>
           <Link href="/register" className="clay-button" style={{ padding: '8px 20px', fontSize: '14px', borderRadius: '8px' }}>
@@ -80,7 +80,7 @@ export default function Home() {
       </section>
 
       {/* ═══════════════ STATS BAR ═══════════════ */}
-      <section style={{ borderTop: '1px solid var(--color-oat-border)', borderBottom: '1px solid var(--color-oat-border)' }}>
+      <section style={{ borderTop: '1px solid var(--border-main)', borderBottom: '1px solid var(--border-main)' }}>
         <div className="container-wide py-10">
           <motion.div
             className="grid grid-cols-2 md:grid-cols-4 gap-8"
@@ -96,8 +96,8 @@ export default function Home() {
               { value: '24/7', label: 'Always Available' },
             ].map((stat, i) => (
               <motion.div key={i} variants={fadeUp} custom={i} className="text-center">
-                <p className="text-3xl md:text-4xl font-semibold mb-1" style={{ letterSpacing: '-1.5px', color: 'var(--color-clay-black)' }}>{stat.value}</p>
-                <p className="text-sm" style={{ color: 'var(--color-neutral-400)' }}>{stat.label}</p>
+                <p className="text-3xl md:text-4xl font-semibold mb-1" style={{ letterSpacing: '-1.5px', color: 'var(--text-primary)' }}>{stat.value}</p>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{stat.label}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -105,7 +105,7 @@ export default function Home() {
       </section>
 
       {/* ═══════════════ FEATURES ═══════════════ */}
-      <section id="features" className="section-padding-lg" style={{ backgroundColor: 'var(--color-neutral-50)' }}>
+      <section id="features" className="section-padding-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
         <div className="container-wide">
           <motion.div
             className="mb-16"
@@ -174,7 +174,7 @@ export default function Home() {
                 <div className={feature.iconClass + ' mb-5'}>
                   {feature.icon}
                 </div>
-                <h3 className="text-lg font-semibold mb-2" style={{ letterSpacing: '-0.3px', color: 'var(--color-clay-black)' }}>{feature.title}</h3>
+                <h3 className="text-lg font-semibold mb-2" style={{ letterSpacing: '-0.3px', color: 'var(--text-primary)' }}>{feature.title}</h3>
                 <p className="body-text-sm">{feature.desc}</p>
               </motion.div>
             ))}
@@ -216,11 +216,11 @@ export default function Home() {
               <span className="preview-dot" />
               <span className="preview-dot" />
             </div>
-            <div className="p-6 md:p-8" style={{ background: 'var(--color-pure-white)' }}>
+            <div className="p-6 md:p-8" style={{ background: 'var(--bg-primary)' }}>
               <div className="flex items-center gap-3 mb-6">
                 <span className="green-dot-lg" />
-                <span className="font-semibold" style={{ letterSpacing: '-0.4px', color: 'var(--color-clay-black)' }}>Yatri AI</span>
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full ml-auto" style={{ background: '#d1fae5', color: 'var(--color-emerald-600)' }}>
+                <span className="font-semibold" style={{ letterSpacing: '-0.4px', color: 'var(--text-primary)' }}>Yatri AI</span>
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full ml-auto" style={{ background: '#d1fae5', color: 'var(--accent-hover)' }}>
                   ↑ Active
                 </span>
               </div>
@@ -241,8 +241,8 @@ export default function Home() {
                     style={{ backgroundColor: agent.bg, border: `1px solid ${agent.border}` }}
                   >
                     <p className="text-lg mb-1">{agent.emoji}</p>
-                    <p className="text-sm font-semibold" style={{ letterSpacing: '-0.2px', color: 'var(--color-clay-black)' }}>{agent.label}</p>
-                    <p className="text-xs" style={{ color: 'var(--color-neutral-500)' }}>{agent.desc}</p>
+                    <p className="text-sm font-semibold" style={{ letterSpacing: '-0.2px', color: 'var(--text-primary)' }}>{agent.label}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{agent.desc}</p>
                   </div>
                 ))}
               </div>
@@ -252,7 +252,7 @@ export default function Home() {
       </section>
 
       {/* ═══════════════ TESTIMONIALS ═══════════════ */}
-      <section id="testimonials" className="section-padding-lg" style={{ backgroundColor: 'var(--color-neutral-50)' }}>
+      <section id="testimonials" className="section-padding-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
         <div className="container-wide">
           <motion.div
             className="mb-16"
@@ -299,14 +299,14 @@ export default function Home() {
               },
             ].map((testimonial, i) => (
               <motion.div key={i} variants={fadeUp} custom={i} className="testimonial-card">
-                <p className="text-base mb-6" style={{ color: 'var(--color-neutral-800)', lineHeight: 1.7, letterSpacing: '-0.2px' }}>
+                <p className="text-base mb-6" style={{ color: 'var(--text-primary)', lineHeight: 1.7, letterSpacing: '-0.2px' }}>
                   {testimonial.quote}
                 </p>
                 <div className="flex items-center gap-3">
                   <span className="green-dot-lg" />
                   <div>
-                    <p className="text-sm font-semibold" style={{ color: 'var(--color-clay-black)' }}>{testimonial.name}</p>
-                    <p className="text-xs" style={{ color: 'var(--color-neutral-400)' }}>{testimonial.role}</p>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{testimonial.name}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{testimonial.role}</p>
                   </div>
                 </div>
               </motion.div>
@@ -367,7 +367,7 @@ export default function Home() {
       </section>
 
       {/* ═══════════════ CTA SECTION ═══════════════ */}
-      <section className="section-padding" style={{ backgroundColor: 'var(--color-clay-black)' }}>
+      <section className="section-padding" style={{ backgroundColor: 'var(--text-primary)' }}>
         <motion.div
           className="container-narrow text-center"
           initial={{ opacity: 0, y: 20 }}
@@ -375,17 +375,17 @@ export default function Home() {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="heading-lg mb-4" style={{ color: 'var(--color-pure-white)' }}>
+          <h2 className="heading-lg mb-4" style={{ color: 'var(--bg-primary)' }}>
             Ready to plan your<br />next adventure?
           </h2>
-          <p className="body-text mb-8 max-w-lg mx-auto" style={{ color: 'var(--color-neutral-400)', fontSize: '17px' }}>
+          <p className="body-text mb-8 max-w-lg mx-auto" style={{ color: 'var(--text-muted)', fontSize: '17px' }}>
             Start chatting with Yatri AI and get a complete travel plan in seconds. No sign-up required.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/chat" className="clay-button-cta" style={{ padding: '14px 32px', fontSize: '16px', borderRadius: '10px' }}>
               Start Planning <ArrowRight className="h-5 w-5" />
             </Link>
-            <Link href="/register" className="clay-button-ghost" style={{ padding: '14px 32px', fontSize: '16px', borderRadius: '10px', borderColor: 'var(--color-neutral-700)', color: 'var(--color-neutral-300)' }}>
+            <Link href="/register" className="clay-button-ghost" style={{ padding: '14px 32px', fontSize: '16px', borderRadius: '10px', borderColor: 'var(--text-secondary)', color: 'var(--text-faint)' }}>
               Create Account
             </Link>
           </div>
@@ -393,20 +393,20 @@ export default function Home() {
       </section>
 
       {/* ═══════════════ FOOTER ═══════════════ */}
-      <footer style={{ borderTop: '1px solid var(--color-oat-border)' }}>
+      <footer style={{ borderTop: '1px solid var(--border-main)' }}>
         <div className="container-wide py-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
               <span className="green-dot" />
-              <span className="text-sm font-semibold" style={{ letterSpacing: '-0.3px', color: 'var(--color-clay-black)' }}>Yatri AI</span>
+              <span className="text-sm font-semibold" style={{ letterSpacing: '-0.3px', color: 'var(--text-primary)' }}>Yatri AI</span>
             </div>
             <div className="flex items-center gap-8">
-              <a href="#features" className="text-sm" style={{ color: 'var(--color-neutral-500)' }}>Features</a>
-              <a href="#agents" className="text-sm" style={{ color: 'var(--color-neutral-500)' }}>Agents</a>
-              <a href="#testimonials" className="text-sm" style={{ color: 'var(--color-neutral-500)' }}>Testimonials</a>
-              <a href="#faq" className="text-sm" style={{ color: 'var(--color-neutral-500)' }}>FAQ</a>
+              <a href="#features" className="text-sm" style={{ color: 'var(--text-secondary)' }}>Features</a>
+              <a href="#agents" className="text-sm" style={{ color: 'var(--text-secondary)' }}>Agents</a>
+              <a href="#testimonials" className="text-sm" style={{ color: 'var(--text-secondary)' }}>Testimonials</a>
+              <a href="#faq" className="text-sm" style={{ color: 'var(--text-secondary)' }}>FAQ</a>
             </div>
-            <p className="text-xs" style={{ color: 'var(--color-neutral-400)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
               © 2026 Yatri AI · Built with Java + Python + Node.js + Next.js
             </p>
           </div>
