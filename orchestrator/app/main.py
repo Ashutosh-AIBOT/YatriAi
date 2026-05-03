@@ -4,7 +4,23 @@ from typing import Dict, Any
 from .graph.graph import trip_graph
 from .graph.state import TripState
 
-app = FastAPI(title="Yatra AI Orchestrator")
+from contextlib import asynccontextmanager
+import asyncio
+from .kafka.consumer import price_monitor_loop
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start the background task
+    task = asyncio.create_task(price_monitor_loop())
+    yield
+    # Cancel the task on shutdown
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+app = FastAPI(title="Yatra AI Orchestrator", lifespan=lifespan)
 
 class ChatRequest(BaseModel):
     trip_id: str
