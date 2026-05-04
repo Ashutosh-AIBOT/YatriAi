@@ -307,7 +307,7 @@ async def chat(req: ChatRequest):
             agent_statuses=result.get("agent_statuses"),
             overall_confidence=result.get("overall_confidence"),
             ragas_result=result.get("ragas_result"),
-            wanderlust_message=result.get("wanderlust_results", {}).get("wanderlust_message"),
+            wanderlust_message=(result.get("wanderlust_results") or {}).get("wanderlust_message"),
             user_prefs=result.get("user_prefs"),
         )
 

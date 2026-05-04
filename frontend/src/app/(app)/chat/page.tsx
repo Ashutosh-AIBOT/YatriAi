@@ -299,7 +299,7 @@ export default function ChatPage() {
                     <button 
                       key={i} 
                       onClick={() => {
-                        sendMessage(`I need help with ${stage.label.toLowerCase()}...`, undefined, stage.id);
+                        sendMessage(`Can you activate the ${stage.label} agent for me?`, undefined, stage.id);
                       }}
                       className="w-full text-left p-3 rounded-xl transition-all hover:scale-[1.02]" 
                       style={{ border: `1px solid ${agentState === 'done' ? 'var(--accent-primary)' : 'var(--border-main)'}`, backgroundColor: 'var(--bg-surface)' }}
