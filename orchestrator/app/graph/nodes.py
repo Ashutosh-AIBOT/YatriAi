@@ -877,9 +877,14 @@ Return ONLY valid JSON. No markdown."""
                 "raw_response": response.content
             }
 
+        plan_ready = bool(state.get("final_plan", {}).get("days"))
         state.setdefault("messages", []).append({
             "role": "assistant",
-            "content": f"🎉 Your travel plan is ready! I've created a detailed itinerary from {state.get('origin')} to {state.get('destination')}."
+            "content": (
+                f"Your detailed travel plan is ready from {state.get('origin')} to {state.get('destination')}. Open the plan card to review and edit it."
+                if plan_ready else
+                "I gathered the research, but the final itinerary is not complete yet. Please share the missing details and I’ll rebuild it properly."
+            )
         })
 
         if state.get("final_plan"):

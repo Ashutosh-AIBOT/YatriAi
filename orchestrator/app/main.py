@@ -284,7 +284,7 @@ async def chat(req: ChatRequest):
         ui_type = "text"
         ui_data = None
 
-        if result.get("final_plan"):
+        if result.get("final_plan") and result["final_plan"].get("days"):
             ui_type = "plan"
             ui_data = result["final_plan"]
         elif result.get("transport_results") and not isinstance(result["transport_results"], str):
@@ -419,7 +419,7 @@ async def chat_stream(req: ChatRequest):
 
             ui_type = "text"
             ui_data = None
-            if result.get("final_plan"):
+            if result.get("final_plan") and result["final_plan"].get("days"):
                 ui_type = "plan"
                 ui_data = result["final_plan"]
             elif result.get("transport_results") and not isinstance(result["transport_results"], str):

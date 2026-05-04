@@ -89,6 +89,8 @@ export default function ChatPage() {
   const [expandedActivity, setExpandedActivity] = useState<string | null>(null);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [planDrafts, setPlanDrafts] = useState<Record<string, string>>({});
+  const [activePlan, setActivePlan] = useState<any | null>(null);
+  const [generatedPlans, setGeneratedPlans] = useState<any[]>([]);
   const [showPrefsModal, setShowPrefsModal] = useState(false);
   const [userPrefsText, setUserPrefsText] = useState('');
   const [historySessions, setHistorySessions] = useState<any[]>([]);
@@ -127,6 +129,12 @@ export default function ChatPage() {
       const res = await api.get(`/history/${sid}`);
       if (res.data) {
         setMessages(hydrateMessages(res.data.messages || [], res.data.final_plan));
+        if (res.data.final_plan?.days) {
+          setGeneratedPlans(prev => [
+            { id: `history_${sid}`, title: res.data.final_plan.title || 'Saved Travel Plan', data: res.data.final_plan },
+            ...prev.filter(p => p.id !== `history_${sid}`)
+          ]);
+        }
         if (res.data.chat_mode) setChatMode(res.data.chat_mode);
         if (res.data.agent_statuses) setAgentStatuses(res.data.agent_statuses);
         if (res.data.overall_confidence != null) setOverallConfidence(res.data.overall_confidence);
@@ -191,6 +199,15 @@ export default function ChatPage() {
         data: response.data.ui_data
       };
       setMessages(prev => [...prev, reply]);
+      if (response.data.ui_type === 'plan' && response.data.ui_data?.days) {
+        const planItem = {
+          id: reply.id,
+          title: response.data.ui_data.title || 'Generated Travel Plan',
+          data: response.data.ui_data,
+        };
+        setGeneratedPlans(prev => [planItem, ...prev.filter(p => p.id !== planItem.id)]);
+        setActivePlan(planItem.data);
+      }
 
       if (response.data.collected_info) {
         setCollectedInfo(response.data.collected_info);
@@ -346,6 +363,27 @@ export default function ChatPage() {
               )}
 
               <p className="clay-label mb-3">AI Agents</p>
+              {generatedPlans.length > 0 && (
+                <div className="mb-6">
+                  <p className="clay-label mb-3">Generated Plans</p>
+                  <div className="space-y-2">
+                    {generatedPlans.slice(0, 5).map((plan) => (
+                      <button
+                        key={plan.id}
+                        onClick={() => setActivePlan(plan.data)}
+                        className="w-full text-left p-3 rounded-xl transition-all hover:scale-[1.01]"
+                        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}
+                      >
+                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{plan.title}</p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                          {plan.data?.total_days ? `${plan.data.total_days} days` : 'Itinerary'} {plan.data?.estimated_cost ? `• ₹${plan.data.estimated_cost.toLocaleString()}` : ''}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3">
                 {[
                   { id: 'transport', icon: Navigation, label: 'Transport', desc: 'Flights • Trains • Buses', color: 'var(--accent-primary)', bg: 'var(--accent-light)' },
@@ -604,12 +642,23 @@ export default function ChatPage() {
                   
                   {/* Plan Card — Comprehensive */}
                   {msg.type === 'plan' && msg.data && (
-                    <div className="mt-4 p-4 rounded-xl" style={{ background: 'var(--accent-light)', border: '1px solid var(--border-main)' }}>
+                    <div className="mt-4 p-4 rounded-xl cursor-pointer" onClick={() => setActivePlan(msg.data)} style={{ background: 'var(--accent-light)', border: '1px solid var(--border-main)' }}>
                       <div className="flex items-center justify-between gap-3 mb-3">
                         <p className="text-xs font-semibold" style={{ color: 'var(--accent-dark)' }}>📋 YOUR TRAVEL PLAN</p>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActivePlan(msg.data);
+                            }}
+                            className="text-[10px] px-2 py-1 rounded-full font-semibold"
+                            style={{ background: 'var(--text-primary)', color: 'var(--bg-primary)' }}
+                          >
+                            Open Full Plan
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setEditingPlanId(editingPlanId === msg.id ? null : msg.id);
                               setPlanDrafts(prev => ({
                                 ...prev,
@@ -988,6 +1037,99 @@ export default function ChatPage() {
           </p>
         </div>
       </div>
+
+      {/* Full Plan Modal */}
+      {activePlan && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.18)' }}
+          onClick={() => setActivePlan(null)}
+        >
+          <div
+            className="w-[min(920px,calc(100vw-32px))] max-h-[78vh] overflow-hidden rounded-2xl shadow-2xl animate-fade-in"
+            style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-main)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 p-5" style={{ borderBottom: '1px solid var(--border-main)' }}>
+              <div>
+                <p className="clay-label mb-1">TRAVEL PLAN</p>
+                <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>{activePlan.title || 'Detailed Travel Plan'}</h2>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {activePlan.total_days && <span className="text-xs px-2 py-1 rounded-full" style={{ background: '#dbeafe', color: '#1e40af' }}>{activePlan.total_days} days</span>}
+                  {activePlan.estimated_cost && <span className="text-xs px-2 py-1 rounded-full" style={{ background: '#d1fae5', color: '#065f46' }}>₹{activePlan.estimated_cost.toLocaleString()}</span>}
+                  {activePlan.confidence_score && <span className="text-xs px-2 py-1 rounded-full" style={{ background: '#fef3c7', color: '#92400e' }}>{activePlan.confidence_score}% confidence</span>}
+                </div>
+              </div>
+              <button
+                onClick={() => setActivePlan(null)}
+                className="p-2 rounded-lg transition-all hover:scale-105"
+                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-muted)' }}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+              <div className="overflow-y-auto p-5 space-y-5" style={{ maxHeight: 'calc(78vh - 120px)' }}>
+              {activePlan.route_chain?.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {activePlan.route_chain.map((city: string, index: number) => (
+                    <span key={`${city}-${index}`} className="flex items-center gap-2">
+                      <span className="px-3 py-1 rounded-full text-sm font-semibold" style={{ background: 'var(--accent-light)', color: 'var(--accent-dark)' }}>{city}</span>
+                      {index < activePlan.route_chain.length - 1 && <span style={{ color: 'var(--text-muted)' }}>→</span>}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {activePlan.agent_contributions && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {Object.entries(activePlan.agent_contributions).map(([agent, text]: [string, any]) => (
+                    <div key={agent} className="p-3 rounded-xl" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}>
+                      <p className="text-xs font-bold mb-1" style={{ color: 'var(--accent-dark)' }}>{agent.toUpperCase()}</p>
+                      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{String(text)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activePlan.days?.map((day: any, dayIndex: number) => (
+                <div key={dayIndex} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-main)', background: 'var(--bg-surface)' }}>
+                  <div className="p-4" style={{ background: 'var(--accent-light)' }}>
+                    <p className="text-sm font-bold" style={{ color: 'var(--accent-dark)' }}>Day {day.day}{day.city ? ` • ${day.city}` : ''}</p>
+                    {day.theme && <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>{day.theme}</p>}
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {day.activities?.map((activity: any, activityIndex: number) => (
+                      <div key={activityIndex} className="grid grid-cols-[76px_1fr_auto] gap-3 items-start">
+                        <span className="text-xs font-mono" style={{ color: 'var(--accent-primary)' }}>{activity.time}</span>
+                        <div>
+                          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{activity.name || activity.description}</p>
+                          {activity.details && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{activity.details}</p>}
+                          {activity.why_chosen && <p className="text-xs mt-1" style={{ color: '#059669' }}>{activity.why_chosen}</p>}
+                        </div>
+                        {activity.cost != null && <span className="text-xs font-semibold" style={{ color: 'var(--accent-dark)' }}>₹{activity.cost}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {activePlan.summary && (
+                <div className="p-4 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #86efac' }}>
+                  <p className="text-sm font-bold mb-2" style={{ color: '#065f46' }}>Summary</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    {activePlan.summary.total_cost != null && <div>Total: <strong>₹{activePlan.summary.total_cost.toLocaleString()}</strong></div>}
+                    {activePlan.summary.total_transport_cost != null && <div>Transport: <strong>₹{activePlan.summary.total_transport_cost.toLocaleString()}</strong></div>}
+                    {activePlan.summary.total_food_cost != null && <div>Food: <strong>₹{activePlan.summary.total_food_cost.toLocaleString()}</strong></div>}
+                    {activePlan.summary.total_hotel_cost != null && <div>Hotel: <strong>₹{activePlan.summary.total_hotel_cost.toLocaleString()}</strong></div>}
+                  </div>
+                  {activePlan.summary.budget_status && <p className="text-xs mt-2 font-semibold" style={{ color: '#065f46' }}>{activePlan.summary.budget_status}</p>}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Preferences Modal */}
       {showPrefsModal && (
