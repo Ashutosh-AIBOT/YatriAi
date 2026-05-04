@@ -13,6 +13,7 @@ from ..agents.hotel import search as hotel_search
 from ..agents.food import find as food_find
 from ..agents.places import discover as places_discover
 from ..agents.maps import build_route as map_route
+from ..agents.wanderlust import motivate as wanderlust_motivate, suggest_best_places
 from ..agents.base import AgentProtocol
 from ..config import settings
 
@@ -56,6 +57,7 @@ Required info to collect:
 - Combine related questions when natural (e.g. "When are you planning to go, and for how many days?")
 - If the user adds info mid-conversation ("also add Jaipur"), acknowledge and update.
 - When you have enough info for a good plan, tell the user you're ready to create their plan.
+- ALWAYS extract any personal information (like their name, where they live, dietary habits, or general likes/dislikes) into `user_prefs_updates` so it can be saved persistently.
 
 == RESPONSE FORMAT ==
 Always respond with valid JSON:
@@ -65,6 +67,7 @@ Always respond with valid JSON:
     // Only include fields that were mentioned in THIS message
     // e.g. "origin": "Kanpur", "destination": "Noida"
   },
+  "user_prefs_updates": "Any newly discovered personal facts (e.g. 'User is named Ashutosh', 'User lives in Kanpur', 'User hates long flights'). Leave empty if none.",
   "ready_to_plan": false,
   "mode": "planning" or "chat"
 }
@@ -171,6 +174,7 @@ async def smart_chat(state: TripState) -> TripState:
             extracted = parsed.get("extracted", {})
             ready = parsed.get("ready_to_plan", False)
             detected_mode = parsed.get("mode", mode)
+            user_prefs_updates = parsed.get("user_prefs_updates")
 
             # Update state with any newly extracted info
             safe_keys = {"origin", "destination", "trip_type", "stop_count",
@@ -181,6 +185,13 @@ async def smart_chat(state: TripState) -> TripState:
             for key, value in extracted.items():
                 if key in safe_keys and value is not None:
                     state[key] = value
+                    
+            if user_prefs_updates:
+                if "user_prefs" not in state or not isinstance(state["user_prefs"], dict):
+                    state["user_prefs"] = {}
+                existing_notes = state["user_prefs"].get("notes", "")
+                if user_prefs_updates not in existing_notes:
+                    state["user_prefs"]["notes"] = f"{existing_notes}\n{user_prefs_updates}".strip()
 
             # Update mode
             if detected_mode == "planning":
@@ -213,6 +224,19 @@ async def smart_chat(state: TripState) -> TripState:
         )
     except Exception as e:
         logger.warning(f"Could not save chat message: {e}")
+
+    # Wanderlust auto-interjection (when enabled)
+    if state.get("wanderlust_enabled") and state.get("current_stage", 1) < 8:
+        try:
+            wl_result = await wanderlust_motivate(state)
+            state["wanderlust_results"] = wl_result
+            if wl_result.get("wanderlust_message"):
+                state["messages"].append({
+                    "role": "assistant",
+                    "content": f"💫 *Wanderlust says:* {wl_result['wanderlust_message']}"
+                })
+        except Exception as e:
+            logger.warning(f"Wanderlust interjection failed: {e}")
 
     return state
 
@@ -450,6 +474,7 @@ async def run_single_agent(state: TripState) -> TripState:
         "food": ("food_results", food_find),
         "places": ("places_results", places_discover),
         "maps": ("map_results", map_route),
+        "wanderlust": ("wanderlust_results", wanderlust_motivate),
     }
 
     if target not in agent_map:

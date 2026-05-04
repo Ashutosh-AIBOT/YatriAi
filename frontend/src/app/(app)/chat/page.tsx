@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Navigation, Utensils, Hotel, Car, MapPin, ArrowLeft, Sparkles, Plane, MessageCircle, CheckCircle2, Settings, History, Palette, X, Edit3, Plus } from 'lucide-react';
+import { Send, Navigation, Utensils, Hotel, Car, MapPin, ArrowLeft, Sparkles, Plane, MessageCircle, CheckCircle2, Settings, History, Palette, X, Edit3, Plus, Zap, Heart } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useThemeStore, THEMES, ThemeName } from '@/store/themeStore';
@@ -55,6 +55,10 @@ export default function ChatPage() {
   const [agentStatuses, setAgentStatuses] = useState<Record<string, any>>({});
   const [overallConfidence, setOverallConfidence] = useState<number | null>(null);
   const [ragasResult, setRagasResult] = useState<any>(null);
+  const [wanderlustEnabled, setWanderlustEnabled] = useState(false);
+  const [wanderlustIntensity, setWanderlustIntensity] = useState(50);
+  const [showPrefsModal, setShowPrefsModal] = useState(false);
+  const [userPrefsText, setUserPrefsText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { theme, setTheme } = useThemeStore();
 
@@ -65,6 +69,12 @@ export default function ChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setUserPrefsText(localStorage.getItem('yatri_user_prefs') || '');
+    }
+  }, []);
 
   const sendMessage = async (message: string, action?: string, targetAgent?: string) => {
     if ((!message.trim() && !action) || isLoading) return;
@@ -82,7 +92,9 @@ export default function ChatPage() {
         session_id: sessionId,
         action: action || undefined,
         target_agent: targetAgent || undefined,
-        user_prefs: { notes: typeof window !== 'undefined' ? localStorage.getItem('yatri_user_prefs') || '' : '' }
+        user_prefs: { notes: typeof window !== 'undefined' ? localStorage.getItem('yatri_user_prefs') || '' : '' },
+        wanderlust_enabled: wanderlustEnabled,
+        wanderlust_intensity: wanderlustIntensity,
       });
       
       const reply = {
@@ -108,6 +120,15 @@ export default function ChatPage() {
       }
       if (response.data.ragas_result) {
         setRagasResult(response.data.ragas_result);
+      }
+      // Sync auto-extracted user prefs from backend to localStorage
+      if (response.data.user_prefs?.notes) {
+        const backendNotes = response.data.user_prefs.notes;
+        const existing = localStorage.getItem('yatri_user_prefs') || '';
+        if (backendNotes.length > existing.length) {
+          localStorage.setItem('yatri_user_prefs', backendNotes);
+          setUserPrefsText(backendNotes);
+        }
       }
     } catch (error) {
       console.error("Chat API Error:", error);
@@ -327,20 +348,62 @@ export default function ChatPage() {
                 ))}
               </div>
 
+              {/* Wanderlust Motivator */}
+              <p className="clay-label mb-4">Wanderlust Motivator</p>
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center justify-between p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}>
+                  <div className="flex items-center gap-2">
+                    <Heart className="h-4 w-4" style={{ color: wanderlustEnabled ? '#ef4444' : 'var(--text-muted)' }} />
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Travel Motivator</span>
+                  </div>
+                  <button
+                    onClick={() => setWanderlustEnabled(!wanderlustEnabled)}
+                    className="w-11 h-6 rounded-full transition-all relative"
+                    style={{ backgroundColor: wanderlustEnabled ? 'var(--accent-primary)' : 'var(--border-main)' }}
+                  >
+                    <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all" style={{ left: wanderlustEnabled ? '22px' : '2px' }} />
+                  </button>
+                </div>
+                {wanderlustEnabled && (
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Intensity</span>
+                      <span className="text-xs font-bold" style={{ color: 'var(--accent-dark)' }}>{wanderlustIntensity}%</span>
+                    </div>
+                    <input
+                      type="range" min="0" max="100" value={wanderlustIntensity}
+                      onChange={(e) => setWanderlustIntensity(parseInt(e.target.value))}
+                      className="w-full accent-emerald-500 h-1.5"
+                    />
+                    <div className="flex justify-between mt-1">
+                      <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>Gentle 💚</span>
+                      <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>Strong 🔥</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Personal Preferences — clickable to open modal */}
               <p className="clay-label mb-4">Personal Preferences</p>
               <div className="space-y-3">
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  Set your global dos, don'ts, pros, and cons here. All agents will prioritize these instructions for highly personalized results.
+                  Auto-collected from your chats + your custom notes. Click to edit.
                 </p>
-                <textarea 
-                  className="w-full p-3 rounded-xl text-sm transition-all focus:outline-none"
-                  style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)', color: 'var(--text-primary)', minHeight: '120px', resize: 'vertical' }}
-                  placeholder="E.g., I am strictly vegetarian. I hate long layovers. I love boutique hotels over large chains. No travel before 9 AM."
-                  onChange={(e) => {
-                    localStorage.setItem('yatri_user_prefs', e.target.value);
-                  }}
-                  defaultValue={typeof window !== 'undefined' ? localStorage.getItem('yatri_user_prefs') || '' : ''}
-                />
+                <button
+                  onClick={() => setShowPrefsModal(true)}
+                  className="w-full p-3 rounded-xl text-left text-sm transition-all hover:scale-[1.01]"
+                  style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)', color: 'var(--text-primary)', minHeight: '80px' }}
+                >
+                  {userPrefsText ? (
+                    <span className="line-clamp-4">{userPrefsText}</span>
+                  ) : (
+                    <span style={{ color: 'var(--text-faint)' }}>Tap to add your preferences...</span>
+                  )}
+                  <div className="flex items-center gap-1 mt-2">
+                    <Edit3 className="h-3 w-3" style={{ color: 'var(--accent-primary)' }} />
+                    <span className="text-[10px] font-semibold" style={{ color: 'var(--accent-primary)' }}>Click to edit</span>
+                  </div>
+                </button>
               </div>
             </>
           )}
@@ -559,6 +622,54 @@ export default function ChatPage() {
           </p>
         </div>
       </div>
+
+      {/* Preferences Modal */}
+      {showPrefsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="w-full max-w-lg mx-4 rounded-2xl shadow-2xl overflow-hidden animate-fade-in" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-main)' }}>
+            <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border-main)' }}>
+              <div>
+                <h3 className="font-semibold" style={{ color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>Personal Preferences</h3>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Auto-collected + your custom notes. All agents use this.</p>
+              </div>
+              <button onClick={() => setShowPrefsModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-all">
+                <X className="h-5 w-5" style={{ color: 'var(--text-muted)' }} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)', letterSpacing: '0.5px' }}>YOUR PREFERENCES</label>
+                <textarea
+                  className="w-full p-4 rounded-xl text-sm focus:outline-none transition-all"
+                  style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)', color: 'var(--text-primary)', minHeight: '200px', resize: 'vertical', lineHeight: '1.6' }}
+                  placeholder={"Write your preferences here. Examples:\n• I am strictly vegetarian\n• I prefer 3-star hotels\n• No travel before 9 AM\n• I love heritage forts and local street food\n• Budget-conscious traveler\n• I live in Kanpur"}
+                  value={userPrefsText}
+                  onChange={(e) => setUserPrefsText(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2 text-xs p-3 rounded-lg" style={{ backgroundColor: 'var(--accent-light)', color: 'var(--accent-dark)' }}>
+                <Sparkles className="h-3.5 w-3.5 flex-shrink-0" />
+                <span>Yatri AI auto-discovers preferences from your chats (name, city, diet, interests) and adds them here.</span>
+              </div>
+            </div>
+            <div className="flex gap-3 p-5" style={{ borderTop: '1px solid var(--border-main)' }}>
+              <button
+                onClick={() => setShowPrefsModal(false)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                style={{ border: '1px solid var(--border-main)', color: 'var(--text-secondary)' }}
+              >Cancel</button>
+              <button
+                onClick={() => {
+                  localStorage.setItem('yatri_user_prefs', userPrefsText);
+                  setShowPrefsModal(false);
+                }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                style={{ backgroundColor: 'var(--accent-primary)' }}
+              >Save Preferences</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

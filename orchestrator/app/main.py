@@ -34,6 +34,8 @@ class ChatRequest(BaseModel):
     user_prefs: Optional[Dict[str, Any]] = None
     action: Optional[str] = None       # "plan_trip" to start planning mode
     target_agent: Optional[str] = None  # Invoke a single agent by name
+    wanderlust_enabled: Optional[bool] = None   # Toggle motivator on/off
+    wanderlust_intensity: Optional[int] = None   # 0-100 intensity slider
 
 class ChatResponse(BaseModel):
     trip_id: str
@@ -47,6 +49,8 @@ class ChatResponse(BaseModel):
     agent_statuses: Optional[Dict] = None      # Real-time agent status
     overall_confidence: Optional[float] = None
     ragas_result: Optional[Dict] = None
+    wanderlust_message: Optional[str] = None    # Latest motivational message
+    user_prefs: Optional[Dict] = None
 
 # ---- Lifespan (Startup / Shutdown) ----
 
@@ -110,6 +114,10 @@ def _init_state(req: ChatRequest) -> dict:
         "ragas_result": None,
         "research_pass": 0,
         "target_agent": None,
+        # Wanderlust agent
+        "wanderlust_enabled": False,
+        "wanderlust_intensity": 50,
+        "wanderlust_results": None,
     }
 
 def _get_collected_info(state: dict) -> dict:
@@ -187,6 +195,12 @@ async def chat(req: ChatRequest):
         if req.user_prefs:
             state["user_prefs"] = req.user_prefs
 
+        # 5b. Update wanderlust settings
+        if req.wanderlust_enabled is not None:
+            state["wanderlust_enabled"] = req.wanderlust_enabled
+        if req.wanderlust_intensity is not None:
+            state["wanderlust_intensity"] = req.wanderlust_intensity
+
         # 6. Run LangGraph state machine
         result = await trip_graph.ainvoke(state)
 
@@ -233,6 +247,8 @@ async def chat(req: ChatRequest):
             agent_statuses=result.get("agent_statuses"),
             overall_confidence=result.get("overall_confidence"),
             ragas_result=result.get("ragas_result"),
+            wanderlust_message=result.get("wanderlust_results", {}).get("wanderlust_message"),
+            user_prefs=result.get("user_prefs"),
         )
 
     except Exception as e:
@@ -345,6 +361,8 @@ async def chat_stream(req: ChatRequest):
                 "agent_statuses": agent_statuses,
                 "overall_confidence": result.get("overall_confidence"),
                 "ragas_result": result.get("ragas_result"),
+                "wanderlust_message": result.get("wanderlust_results", {}).get("wanderlust_message"),
+                "user_prefs": result.get("user_prefs"),
             })
 
             yield _sse_event("done", {})

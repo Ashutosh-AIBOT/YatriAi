@@ -49,6 +49,11 @@ class TripState(TypedDict):
     research_pass: Optional[int]            # Which pass of research (1=first, 2=re-research)
     target_agent: Optional[str]             # If set, only run this single agent
 
+    # ─── Wanderlust Motivator Agent ───
+    wanderlust_enabled: Optional[bool]       # Toggle on/off
+    wanderlust_intensity: Optional[int]      # 0-100 intensity slider
+    wanderlust_results: Optional[Dict]       # Latest motivational message
+
     # Agent results
     transport_results: Optional[Dict]
     cab_results: Optional[Dict]
