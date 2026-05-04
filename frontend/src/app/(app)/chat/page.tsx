@@ -57,6 +57,7 @@ export default function ChatPage() {
   const [ragasResult, setRagasResult] = useState<any>(null);
   const [wanderlustEnabled, setWanderlustEnabled] = useState(false);
   const [wanderlustIntensity, setWanderlustIntensity] = useState(50);
+  const [psychologyEnabled, setPsychologyEnabled] = useState(true);
   const [showPrefsModal, setShowPrefsModal] = useState(false);
   const [userPrefsText, setUserPrefsText] = useState('');
   const [historySessions, setHistorySessions] = useState<any[]>([]);
@@ -128,6 +129,7 @@ export default function ChatPage() {
         user_prefs: { notes: typeof window !== 'undefined' ? localStorage.getItem('yatri_user_prefs') || '' : '' },
         wanderlust_enabled: wanderlustEnabled,
         wanderlust_intensity: wanderlustIntensity,
+        psychology_enabled: psychologyEnabled,
       });
       
       const reply = {
@@ -436,6 +438,24 @@ export default function ChatPage() {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Psychology Subagent Toggle */}
+              <p className="clay-label mb-4">Psychology Profiling</p>
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center justify-between p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" style={{ color: psychologyEnabled ? '#db2777' : 'var(--text-muted)' }} />
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Continuous Psychology</span>
+                  </div>
+                  <button
+                    onClick={() => setPsychologyEnabled(!psychologyEnabled)}
+                    className="w-11 h-6 rounded-full transition-all relative"
+                    style={{ backgroundColor: psychologyEnabled ? '#db2777' : 'var(--border-main)' }}
+                  >
+                    <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all" style={{ left: psychologyEnabled ? '22px' : '2px' }} />
+                  </button>
+                </div>
               </div>
 
               {/* Personal Preferences — clickable to open modal */}

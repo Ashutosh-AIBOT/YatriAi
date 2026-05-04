@@ -36,6 +36,7 @@ class ChatRequest(BaseModel):
     target_agent: Optional[str] = None  # Invoke a single agent by name
     wanderlust_enabled: Optional[bool] = None   # Toggle motivator on/off
     wanderlust_intensity: Optional[int] = None   # 0-100 intensity slider
+    psychology_enabled: Optional[bool] = None    # Continuous psychology profiling
 
 class ChatResponse(BaseModel):
     trip_id: str
@@ -118,6 +119,7 @@ def _init_state(req: ChatRequest) -> dict:
         "wanderlust_enabled": False,
         "wanderlust_intensity": 50,
         "wanderlust_results": None,
+        "psychology_enabled": True,
     }
 
 def _get_collected_info(state: dict) -> dict:
@@ -256,6 +258,8 @@ async def chat(req: ChatRequest):
             state["wanderlust_enabled"] = req.wanderlust_enabled
         if req.wanderlust_intensity is not None:
             state["wanderlust_intensity"] = req.wanderlust_intensity
+        if req.psychology_enabled is not None:
+            state["psychology_enabled"] = req.psychology_enabled
 
         # 6. Run LangGraph state machine
         result = await trip_graph.ainvoke(state)

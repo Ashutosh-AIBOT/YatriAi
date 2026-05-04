@@ -157,6 +157,25 @@ async def smart_chat(state: TripState) -> TripState:
         else:
             history_msgs.append(SystemMessage(content=f"Your previous reply: {msg['content']}"))
 
+    # Continuous Psychology Profiling (if enabled)
+    if state.get("psychology_enabled", True) and not target:
+        try:
+            from ..agents.psychology import analyze_psychology
+            psy_result = await analyze_psychology(state)
+            if psy_result.get("status") == "success" and psy_result.get("profile"):
+                p = psy_result["profile"]
+                state["psychology_results"] = p
+                
+                psy_prompt = f"PSYCHOLOGICAL PROFILE JUST UPDATED:\n" \
+                             f"Mood: {p.get('mood')}\n" \
+                             f"Motivation: {p.get('motivation')}\n" \
+                             f"Predictive Preferences: {', '.join(p.get('predictive_preferences', []))}\n" \
+                             f"Manipulation Hooks (Use these subtly): {', '.join(p.get('manipulation_hooks', []))}\n\n" \
+                             f"CRITICAL: Tailor your response and tone to perfectly match this profile."
+                history_msgs.insert(-1, SystemMessage(content=psy_prompt))
+        except Exception as e:
+            logger.warning(f"Continuous psychology analysis failed: {e}")
+
     try:
         response = await llm.ainvoke(history_msgs)
         raw = response.content
@@ -499,9 +518,26 @@ async def run_single_agent(state: TripState) -> TripState:
         AgentProtocol.set_status(state, target, "done",
                                  f"{target.title()} search complete", confidence)
         state[result_key] = result
+        
+        # Append structured output for the user
+        if target == "psychology" and result.get("profile"):
+            p = result["profile"]
+            msg = f"🧠 **Psychological Profile Updated**\n\n" \
+                  f"**Mood:** {p.get('mood', 'N/A')}\n" \
+                  f"**Motivation:** {p.get('motivation', 'N/A')}\n" \
+                  f"**Predictions:** {', '.join(p.get('predictive_preferences', []))}\n" \
+                  f"**Hooks:** {', '.join(p.get('manipulation_hooks', []))}\n\n" \
+                  f"*Confidence:* {confidence}%"
+            state.setdefault("messages", []).append({"role": "assistant", "content": msg})
+        elif target == "wanderlust" and result.get("wanderlust_message"):
+            state.setdefault("messages", []).append({"role": "assistant", "content": f"💫 *Wanderlust says:* {result['wanderlust_message']}"})
+        else:
+            state.setdefault("messages", []).append({"role": "assistant", "content": f"✅ **{target.title()} Agent** finished processing successfully. Results have been saved to your profile."})
+            
     except Exception as e:
         logger.error(f"Single agent {target} failed: {e}")
         AgentProtocol.set_error(state, target, str(e))
         state[result_key] = {"status": "error", "error": str(e)}
+        state.setdefault("messages", []).append({"role": "assistant", "content": f"❌ **{target.title()} Agent** encountered an error: {e}"})
 
     return state
