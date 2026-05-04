@@ -11,28 +11,33 @@ start_service() {
     # Don't let individual service failures kill the script
 }
 
-# 1. Start Postgres & Redis
-echo "Booting Databases..."
-service postgresql start || echo "Warning: Postgres failed to start"
+# 1. Start Redis (Postgres/Kafka optional)
+echo "Booting Redis..."
 service redis-server start || echo "Warning: Redis failed to start"
 
-# 2. Start Kafka in KRaft mode
-start_service "Kafka" "/opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/kraft/server.properties" "logs_kafka.log"
-sleep 5 # Give Kafka time to initialize
+# 2. Start Orchestrator (FastAPI) — the critical service
+echo "Booting Orchestrator on port 8001..."
+cd /app/orchestrator
+source .venv/bin/activate
+uvicorn app.main:app --host 0.0.0.0 --port 8001 > /app/logs_orchestrator.log 2>&1 &
+cd /app
 
-# 3. Start Gateway (Java Spring Boot)
-start_service "Gateway API" "cd /app/gateway && java -jar target/gateway-0.0.1-SNAPSHOT.jar" "logs_gateway.log"
+# 3. Wait for orchestrator to be ready
+echo "Waiting for Orchestrator to start..."
+for i in {1..15}; do
+    if curl -s http://localhost:8001/health > /dev/null 2>&1; then
+        echo "✅ Orchestrator is UP!"
+        break
+    fi
+    echo "  Waiting... ($i/15)"
+    sleep 2
+done
 
-# 4. Start Orchestrator (FastAPI)
-start_service "Orchestrator" "cd /app/orchestrator && source .venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8001" "logs_orchestrator.log"
-
-# 5. Start Notification Service (Node.js)
-start_service "Notification Websockets" "cd /app/notification && node src/server.js" "logs_notification.log"
-
-# 6. Start Frontend (Next.js) on the exposed port
+# 4. Start Frontend (Next.js) on the exposed port 7860
 echo "Booting Next.js Frontend on port 7860..."
 cd /app/frontend
 export PORT=7860
+export ORCHESTRATOR_URL="http://localhost:8001"
 export NEXT_PUBLIC_GATEWAY_URL="/api/v1"
 export NEXT_PUBLIC_NOTIFICATION_URL=""
 

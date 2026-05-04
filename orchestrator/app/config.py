@@ -4,8 +4,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
-    # === Required (system will not start without these) ===
-    groq_api_key: str
+    # === LLM Key (will fail at LLM call time if not set, but server starts) ===
+    groq_api_key: str = ""
     jwt_secret: str = "yatri_ai_default_dev_secret_key_32chars"
 
     # === Database (defaults for Docker/HF monolith) ===
