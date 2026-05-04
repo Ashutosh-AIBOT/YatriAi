@@ -19,7 +19,7 @@ service redis-server start || echo "Warning: Redis failed to start"
 echo "Booting Orchestrator on port 8001..."
 cd /app/orchestrator
 source .venv/bin/activate
-uvicorn app.main:app --host 0.0.0.0 --port 8001 > /app/logs_orchestrator.log 2>&1 &
+uvicorn app.main:app --host 0.0.0.0 --port 8001 2>&1 | tee /app/logs_orchestrator.log &
 cd /app
 
 # 3. Wait for orchestrator to be ready

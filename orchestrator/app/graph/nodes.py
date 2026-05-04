@@ -193,7 +193,7 @@ def _has_required_plan_fields(state: dict) -> bool:
 
 def _update_collection_stage(state: dict) -> None:
     """Keep the legacy stage number useful for tests and the frontend."""
-    stage = state.get("current_stage", 1)
+    stage = 1
     if state.get("origin") or state.get("destination"):
         stage = max(stage, 2)
     if state.get("group_size") not in (None, "", [], {}):
