@@ -479,6 +479,7 @@ async def run_single_agent(state: TripState) -> TripState:
         "places": ("places_results", places_discover),
         "maps": ("map_results", map_route),
         "wanderlust": ("wanderlust_results", wanderlust_motivate),
+        "psychology": ("psychology_results", analyze_psychology),
     }
 
     if target not in agent_map:

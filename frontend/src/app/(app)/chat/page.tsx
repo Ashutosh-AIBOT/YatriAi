@@ -288,6 +288,7 @@ export default function ChatPage() {
                   { id: 'food', icon: Utensils, label: 'Food', desc: 'Local cuisine & restaurants', color: '#b45309', bg: '#fef3c7' },
                   { id: 'places', icon: MapPin, label: 'Places', desc: 'Tourist spots & attractions', color: '#be123c', bg: '#ffe4e6' },
                   { id: 'maps', icon: Navigation, label: 'Maps', desc: 'Optimized route planning', color: '#0e7490', bg: '#cffafe' },
+                  { id: 'psychology', icon: Sparkles, label: 'Psychology', desc: 'Mood & Motivations', color: '#db2777', bg: '#fce7f3' },
                 ].map((stage, i) => {
                   const status = agentStatuses[stage.id];
                   const agentState = status?.status || 'idle';
@@ -613,6 +614,7 @@ export default function ChatPage() {
                         { id: 'food', num: 4, label: 'Restaurant recommendations', icon: '🍽️' },
                         { id: 'places', num: 5, label: 'Places to visit', icon: '📍' },
                         { id: 'maps', num: 6, label: 'Optimized route map', icon: '🗺️' },
+                        { id: 'psychology', num: 7, label: 'Psychology profiling', icon: '🧠' },
                       ].map((step, i) => {
                         const s = agentStatuses[step.id];
                         const isDone = s?.status === 'done';
@@ -671,7 +673,7 @@ export default function ChatPage() {
           <p className="text-center mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
             {chatMode === 'planning' 
               ? `✨ Planning mode • ${collectedEntries.length}/12 details collected`
-              : 'Six AI agents ready • Transport • Cabs • Hotels • Food • Places • Maps'
+              : 'Seven AI agents ready • Transport • Cabs • Hotels • Food • Places • Maps • Psychology'
             }
           </p>
         </div>
