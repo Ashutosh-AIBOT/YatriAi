@@ -28,52 +28,63 @@ llm = ChatGroq(
 
 # ─── System prompt for the conversational travel AI ───
 
-SYSTEM_PROMPT = """You are Yatri AI, a friendly and smart travel planning assistant for India.
-You have two modes:
-1. GENERAL CHAT — When the user is just chatting, asking questions, or hasn't started planning a trip yet, respond naturally and helpfully. Be warm, knowledgeable, and conversational.
-2. TRIP PLANNING — When the user wants to plan a trip (they say "plan a trip", click Plan Trip, or mention travel), you collect information through natural conversation.
+SYSTEM_PROMPT = """You are Yatri AI, an extremely warm, respectful, and deeply personalized travel planning assistant for India.
+You speak like a trusted friend who genuinely cares about the user's travel experience.
 
-== TRIP PLANNING RULES ==
-You need to collect the following information for a perfect trip plan. But DO NOT ask all questions at once.
-Ask ONE question at a time. Be smart — if the user already mentioned something, acknowledge it and move on.
+== YOUR PERSONALITY ==
+- Always greet returning users by name if you know it (from user preferences).
+- Reference their known preferences naturally: "Since you love spicy food..." or "I know you prefer budget stays..."
+- NEVER be robotic. Be enthusiastic, use emojis sparingly, and make conversations feel alive.
+- When the user first clicks "Plan Trip", start with an excited, warm greeting and ask WHERE they want to go.
 
-Required info to collect:
-- origin: Where they're traveling from
-- destination: Where they're going
-- trip_type: "urgent" (direct) or "explore" (leisure, stops allowed)
-- transport_modes: How they want to travel (flight/train/bus/cab/mix)
-- start_date: When they're going
-- end_date: When they're returning (or number of days)
-- total_budget: Their budget for the entire trip (in INR)
-- group_size: How many people traveling
-- hotel_stars: Preferred hotel quality (1-5 stars)
-- is_vegetarian: Dietary preference (for food recommendations)
-- cuisine_preferences: What kind of food they enjoy
-- interest_tags: What they want to see/do (forts, nature, shopping, nightlife, temples, etc.)
+== TWO MODES ==
+1. GENERAL CHAT — Natural conversation. Answer travel questions, share tips, be helpful.
+2. TRIP PLANNING — Collect trip info through natural conversation. DO NOT ask all questions at once.
 
-== HOW TO ASK ==
-- After each user message, extract any info they gave.
-- Then ask the NEXT most relevant question naturally.
-- If user mentions extra details, acknowledge them ("Great choice! Rajasthan has amazing forts!")
-- Combine related questions when natural (e.g. "When are you planning to go, and for how many days?")
-- If the user adds info mid-conversation ("also add Jaipur"), acknowledge and update.
-- When you have enough info for a good plan, tell the user you're ready to create their plan.
-- ALWAYS extract any personal information (like their name, where they live, dietary habits, or general likes/dislikes) into `user_prefs_updates` so it can be saved persistently.
+== TRIP PLANNING FLOW (MUST FOLLOW THIS ORDER) ==
+When the user wants to plan a trip, collect info in THIS priority order, ONE question at a time:
+
+STEP 1: "Where would you like to go?" (destination) — Ask this FIRST, always.
+STEP 2: "Where will you be traveling from?" (origin) — If not known from preferences.
+STEP 3: "How many people are traveling?" (group_size)
+STEP 4: "What's your budget for this trip?" (total_budget in INR)
+STEP 5: "Is this an urgent/direct trip, or do you want to explore along the way?" (trip_type: "urgent" or "explore")
+STEP 6: "How would you like to travel — flight, train, bus, or a mix?" (transport_modes)
+STEP 7: "When are you planning to go, and for how many days?" (start_date, end_date)
+STEP 8: "Any hotel preference — budget, mid-range, or luxury?" (hotel_stars)
+STEP 9: "Any food preferences? Vegetarian? Favorite cuisines?" (is_vegetarian, cuisine_preferences)
+STEP 10: "What interests you most — forts, nature, shopping, nightlife, temples, adventure?" (interest_tags)
+
+== SMART BEHAVIOR ==
+- CHECK USER PREFERENCES FIRST: If you already know their origin, diet, or likes from saved preferences, DON'T re-ask. Say: "I see you usually travel from Kanpur — shall I use that as your starting point?"
+- If the user gives multiple pieces of info at once, extract ALL of them and skip to the next unknown.
+- Acknowledge every answer enthusiastically before asking the next question.
+- If the user seems unsure about budget, suggest ranges: "Most travelers spend ₹15,000-50,000 for a 3-5 day trip."
+- When a route preference is detected, note if it's "urgent" (fastest/direct) or "explore" (scenic/flexible).
+- ALWAYS extract personal facts into user_prefs_updates to save persistently.
+
+== WHEN TO TRIGGER PLANNING ==
+Set ready_to_plan to true ONLY when you have ALL of these:
+✅ origin, ✅ destination, ✅ group_size, ✅ total_budget, ✅ trip_type, ✅ transport_modes
+When ready, say something like: "Perfect! I have everything I need. Let me activate my 7 AI agents to find the best routes, hotels, food, and experiences for you!"
 
 == RESPONSE FORMAT ==
 Always respond with valid JSON:
 {
-  "reply": "Your conversational message to the user",
+  "reply": "Your warm, personalized conversational message",
   "extracted": {
-    // Only include fields that were mentioned in THIS message
-    // e.g. "origin": "Kanpur", "destination": "Noida"
+    // Only include fields mentioned in THIS message
   },
-  "user_prefs_updates": "Any newly discovered personal facts (e.g. 'User is named Ashutosh', 'User lives in Kanpur', 'User hates long flights'). Leave empty if none.",
+  "user_prefs_updates": "Any newly discovered personal facts. Leave empty string if none.",
   "ready_to_plan": false,
   "mode": "planning" or "chat"
 }
 
-Set ready_to_plan to true ONLY when you have at least: origin, destination, transport_modes, and either budget or dates.
+CRITICAL RULES:
+1. Your ENTIRE response must be a SINGLE valid JSON object. Nothing else.
+2. Do NOT include ```json markers, explanations, or any text outside the JSON.
+3. Do NOT put the extracted data or ready_to_plan status inside the "reply" text.
+4. The "reply" field should ONLY contain the conversational message the user sees.
 """
 
 # ─── Single-agent invocation prompt ───
@@ -181,50 +192,109 @@ async def smart_chat(state: TripState) -> TripState:
         response = await llm.ainvoke(history_msgs)
         raw = response.content
 
-        # Try to parse JSON response
+        # ── Robust JSON parsing ──
+        # Strategy 1: Try to find a clean JSON block that contains "reply"
         parsed = None
-        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        reply_text = None
+        extracted = {}
+        ready = False
+        detected_mode = mode
+        user_prefs_updates = None
+
+        # Try to find JSON with "reply" key (proper response)
+        json_match = re.search(r'\{[^{}]*"reply"[^{}]*\}', raw, re.DOTALL)
+        if not json_match:
+            # Fallback: greedy match for any JSON
+            json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        
         if json_match:
             try:
                 parsed = json.loads(json_match.group())
             except json.JSONDecodeError:
-                pass
+                # Try to fix common JSON issues (trailing commas, etc)
+                try:
+                    cleaned_json = re.sub(r',\s*}', '}', json_match.group())
+                    cleaned_json = re.sub(r',\s*]', ']', cleaned_json)
+                    parsed = json.loads(cleaned_json)
+                except json.JSONDecodeError:
+                    parsed = None
 
-        if parsed:
-            reply_text = parsed.get("reply", raw)
+        if parsed and "reply" in parsed:
+            reply_text = parsed["reply"]
             extracted = parsed.get("extracted", {})
             ready = parsed.get("ready_to_plan", False)
             detected_mode = parsed.get("mode", mode)
             user_prefs_updates = parsed.get("user_prefs_updates")
-
-            # Update state with any newly extracted info
-            safe_keys = {"origin", "destination", "trip_type", "stop_count",
-                         "requested_stops", "transport_modes", "start_date",
-                         "end_date", "total_budget", "group_size", "hotel_stars",
-                         "is_vegetarian", "cuisine_preferences", "interest_tags",
-                         "allow_suggestions"}
-            for key, value in extracted.items():
-                if key in safe_keys and value is not None:
-                    state[key] = value
-                    
-            if user_prefs_updates:
-                if "user_prefs" not in state or not isinstance(state["user_prefs"], dict):
-                    state["user_prefs"] = {}
-                existing_notes = state["user_prefs"].get("notes", "")
-                if user_prefs_updates not in existing_notes:
-                    state["user_prefs"]["notes"] = f"{existing_notes}\n{user_prefs_updates}".strip()
-
-            # Update mode
-            if detected_mode == "planning":
-                state["chat_mode"] = "planning"
-
-            # If ready to plan, set stage to trigger agent dispatch
-            if ready:
-                state["current_stage"] = 8  # Triggers dispatch
-                reply_text += "\n\n✨ I have everything I need! Let me activate all my AI agents to create your personalized travel plan..."
         else:
-            # LLM didn't return JSON — just use the raw text
+            # LLM didn't return proper JSON — use raw text but clean it
             reply_text = raw
+            
+            # Try to detect ready_to_plan from text
+            if re.search(r'ready.to.plan.*true', raw, re.IGNORECASE):
+                ready = True
+            
+            # Try to extract fields from embedded JSON blocks
+            embedded = re.search(r'"destination"\s*:\s*"([^"]+)"', raw)
+            if embedded:
+                extracted["destination"] = embedded.group(1)
+            embedded = re.search(r'"origin"\s*:\s*"([^"]+)"', raw)
+            if embedded:
+                extracted["origin"] = embedded.group(1)
+            embedded = re.search(r'"group_size"\s*:\s*(\d+)', raw)
+            if embedded:
+                extracted["group_size"] = int(embedded.group(1))
+            embedded = re.search(r'"total_budget"\s*:\s*(\d+)', raw)
+            if embedded:
+                extracted["total_budget"] = int(embedded.group(1))
+            embedded = re.search(r'"trip_type"\s*:\s*"([^"]+)"', raw)
+            if embedded:
+                extracted["trip_type"] = embedded.group(1)
+            embedded = re.search(r'"transport_modes?\s*"\s*:\s*"([^"]+)"', raw)
+            if embedded:
+                extracted["transport_modes"] = [embedded.group(1)]
+
+        # ── Always clean reply text of leaked JSON metadata ──
+        cleanup_patterns = [
+            r'\*\*Extracted:?\*\*[\s\S]*$',
+            r'\*\*Ready to [Pp]lan:?\*\*[\s\S]*$',
+            r'\*\*Mode:?\*\*[\s\S]*$',
+            r'\*\*User [Pp]refs? [Uu]pdates?:?\*\*[\s\S]*$',
+            r'\*\*Note:?\*\*[\s\S]*$',
+            r'\n\s*\{[^{}]*"(destination|extracted|ready_to_plan|mode)"[^{}]*\}',
+        ]
+        for pattern in cleanup_patterns:
+            reply_text = re.sub(pattern, '', reply_text, flags=re.MULTILINE).strip()
+        
+        # Remove trailing whitespace and newlines
+        reply_text = reply_text.rstrip('\n \t')
+        if not reply_text:
+            reply_text = "I'm processing your request! What else would you like to share about your trip?"
+
+        # Update state with any newly extracted info
+        safe_keys = {"origin", "destination", "trip_type", "stop_count",
+                     "requested_stops", "transport_modes", "start_date",
+                     "end_date", "total_budget", "group_size", "hotel_stars",
+                     "is_vegetarian", "cuisine_preferences", "interest_tags",
+                     "allow_suggestions"}
+        for key, value in extracted.items():
+            if key in safe_keys and value is not None:
+                state[key] = value
+                
+        if user_prefs_updates and isinstance(user_prefs_updates, str) and user_prefs_updates.strip():
+            if "user_prefs" not in state or not isinstance(state["user_prefs"], dict):
+                state["user_prefs"] = {}
+            existing_notes = state["user_prefs"].get("notes", "")
+            if user_prefs_updates not in existing_notes:
+                state["user_prefs"]["notes"] = f"{existing_notes}\n{user_prefs_updates}".strip()
+
+        # Update mode
+        if detected_mode == "planning":
+            state["chat_mode"] = "planning"
+
+        # If ready to plan, set stage to trigger agent dispatch
+        if ready:
+            state["current_stage"] = 8  # Triggers dispatch
+            reply_text += "\n\n✨ I have everything I need! Let me activate all my AI agents to create your personalized travel plan..."
 
         state.setdefault("messages", []).append({
             "role": "assistant",
@@ -399,54 +469,129 @@ async def build_plan(state: TripState) -> TripState:
         user_prefs = state.get("user_prefs", {})
         prefs_text = user_prefs.get("notes", "") if isinstance(user_prefs, dict) else str(user_prefs)
 
-        plan_prompt = f"""You are the Yatri AI Main Orchestrator Bot. Your 6 subagents have completed their parallel research.
-You must now synthesize their data (A2A protocol) into a highly personalized travel plan.
+        plan_prompt = f"""You are the Yatri AI Main Orchestrator. Your 7 subagents have completed research.
+Synthesize ALL data into a comprehensive, human-friendly travel plan.
 
-CRITICAL INSTRUCTIONS:
-1. You MUST strictly adhere to the user's personal preferences: "{prefs_text}"
-2. You MUST use the psychological profile to manipulate and motivate the user effectively: {json.dumps(state.get("psychology_results", {}))}
-3. Evaluate how well the plan aligns with preferences → output a confidence_score (0-100)
-4. Perform a RAGAS alignment check — rate how relevant, accurate, grounded, and specific the plan is
-5. If any agent had low confidence, note it as a caveat in tips
-6. Only show information that is RELEVANT to this specific traveler
-7. The Main Agent (you) decides what to show and what to hide based on personalization
+USER PREFERENCES: "{prefs_text}"
+PSYCHOLOGY PROFILE: {json.dumps(state.get("psychology_results", {}))}
+AGENT DATA: {json.dumps(context, default=str)}
 
-Agent Research Data: {json.dumps(context, default=str)}
+== PLAN RULES ==
+1. Create a COMPLETE day-by-day chain: Morning breakfast → Place visit → Lunch → Place visit → Evening activity → Dinner → Hotel stay
+2. For multi-destination trips, chain cities: City1 (Day 1-2) → Travel → City2 (Day 3-4) → Travel → City3 (Day 5)
+3. Every activity MUST have: time, type, name, details, cost, and an "alternatives" array with 1-2 cheaper/better options
+4. Each alternative has: name, cost, pros, cons, rating (1-5)
+5. Track running budget — show remaining_budget after each day
+6. Include transport segments between cities with fastest AND cheapest options
+7. Respect dietary preferences, budget limits, and trip_type (urgent=direct routes, explore=scenic)
+8. At the end, include a "summary" with totals for transport, food, hotel, activities, and time
 
-Create a JSON plan with exactly this structure:
+Return ONLY valid JSON:
 {{
-  "title": "Trip from X to Y",
+  "title": "Trip: Origin → Destination",
   "total_days": N,
   "estimated_cost": N,
+  "budget": N,
+  "remaining_budget": N,
   "confidence_score": 85,
-  "ragas_alignment_check": "High alignment — plan respects vegetarian preference and budget constraints.",
-  "ragas_scores": {{
-    "relevance": 0.92,
-    "accuracy": 0.88,
-    "groundedness": 0.85,
-    "personalization": 0.90
-  }},
+  "ragas_alignment_check": "...",
+  "ragas_scores": {{"relevance": 0.9, "accuracy": 0.85, "groundedness": 0.8, "personalization": 0.9}},
   "agent_contributions": {{
-    "transport": "Found 3 train options within budget",
-    "hotels": "Selected 3-star hotels per preference",
-    "food": "All vegetarian restaurants recommended",
-    "places": "Heritage sites matching interest tags",
-    "cabs": "Uber vs Ola comparison available",
-    "maps": "Optimized route with 2 stops"
+    "transport": "Found fastest route via train (5h, ₹500)",
+    "hotels": "3 budget hotels under ₹1500/night",
+    "food": "Vegetarian restaurants prioritized",
+    "places": "5 heritage sites matching interests",
+    "cabs": "Ola vs Uber at each stop",
+    "maps": "Optimized route: A→B→C",
+    "psychology": "Adventure-focused plan to match excited mood"
   }},
+  "route_chain": ["City A", "City B", "City C"],
   "days": [
     {{
       "day": 1,
+      "city": "City Name",
+      "theme": "Arrival & Exploration",
+      "remaining_budget": N,
       "activities": [
-        {{"time": "9:00 AM", "type": "transport|hotel|food|place", "name": "...", "details": "...", "cost": N}}
+        {{
+          "time": "8:00 AM",
+          "type": "food",
+          "name": "Breakfast at Local Cafe",
+          "details": "Famous for masala dosa. Highly rated on Zomato.",
+          "cost": 150,
+          "why_chosen": "Matches user's love for spicy food and budget preference",
+          "alternatives": [
+            {{"name": "Hotel Restaurant", "cost": 300, "pros": "Convenient, AC", "cons": "Pricier", "rating": 4}},
+            {{"name": "Street Food Stall", "cost": 50, "pros": "Cheapest, authentic", "cons": "No seating", "rating": 3}}
+          ]
+        }},
+        {{
+          "time": "10:00 AM",
+          "type": "place",
+          "name": "Famous Fort",
+          "details": "Historic fort with panoramic views. Best visited in the morning.",
+          "cost": 50,
+          "why_chosen": "Top-rated heritage site matching interest tags",
+          "alternatives": []
+        }},
+        {{
+          "time": "1:00 PM",
+          "type": "food",
+          "name": "Lunch at Spice Garden",
+          "details": "Known for authentic local thali.",
+          "cost": 200,
+          "why_chosen": "Spicy food preference",
+          "alternatives": []
+        }},
+        {{
+          "time": "3:00 PM",
+          "type": "place",
+          "name": "Local Market",
+          "details": "Shopping and cultural experience.",
+          "cost": 0,
+          "why_chosen": "Free activity to balance budget",
+          "alternatives": []
+        }},
+        {{
+          "time": "7:00 PM",
+          "type": "food",
+          "name": "Dinner at Rooftop Restaurant",
+          "details": "Great ambiance with city views.",
+          "cost": 400,
+          "why_chosen": "Highly rated, fits evening vibe",
+          "alternatives": []
+        }},
+        {{
+          "time": "9:00 PM",
+          "type": "hotel",
+          "name": "Budget Hotel Stay",
+          "details": "Clean rooms, AC, WiFi. Check-in for the night.",
+          "cost": 1200,
+          "why_chosen": "Budget preference, 3-star quality",
+          "alternatives": [
+            {{"name": "Luxury Hotel", "cost": 3500, "pros": "Pool, spa, breakfast", "cons": "Over budget", "rating": 5}},
+            {{"name": "Hostel Dorm", "cost": 400, "pros": "Cheapest option", "cons": "Shared room, no privacy", "rating": 2}}
+          ]
+        }}
       ]
     }}
   ],
+  "summary": {{
+    "total_transport_cost": N,
+    "total_food_cost": N,
+    "total_hotel_cost": N,
+    "total_activities_cost": N,
+    "total_cost": N,
+    "total_travel_time_hrs": N,
+    "total_stops": N,
+    "budget_status": "Under budget by ₹X" or "Over budget by ₹X",
+    "key_highlights": ["Highlight 1", "Highlight 2"]
+  }},
   "tips": ["tip1", "tip2"],
-  "personalization_notes": "What was customized for this user"
+  "personalization_notes": "Plan customized because user loves spicy food and prefers budget stays"
 }}
 
-Return ONLY valid JSON. Do not include markdown blocks."""
+Return ONLY valid JSON. No markdown."""
 
         response = await llm.ainvoke([HumanMessage(content=plan_prompt)])
         match = re.search(r'\{.*\}', response.content, re.DOTALL)

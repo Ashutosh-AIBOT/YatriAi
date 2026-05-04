@@ -58,6 +58,7 @@ export default function ChatPage() {
   const [wanderlustEnabled, setWanderlustEnabled] = useState(false);
   const [wanderlustIntensity, setWanderlustIntensity] = useState(50);
   const [psychologyEnabled, setPsychologyEnabled] = useState(true);
+  const [expandedActivity, setExpandedActivity] = useState<string | null>(null);
   const [showPrefsModal, setShowPrefsModal] = useState(false);
   const [userPrefsText, setUserPrefsText] = useState('');
   const [historySessions, setHistorySessions] = useState<any[]>([]);
@@ -165,12 +166,25 @@ export default function ChatPage() {
           setUserPrefsText(backendNotes);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chat API Error:", error);
+      const errorMsg = error?.response?.data?.message || '';
+      const isTimeout = error?.code === 'ECONNABORTED' || errorMsg.includes('timeout');
+      const isServerError = error?.response?.status >= 500;
+      
+      let userMessage = '😔 I couldn\'t process that right now. ';
+      if (isTimeout) {
+        userMessage += 'The request took too long — our servers might be busy. Please try again in a moment.';
+      } else if (isServerError) {
+        userMessage += 'Our AI services are temporarily experiencing high load. Your data is safe — just tap send again!';
+      } else {
+        userMessage += 'Please check your connection and try again. If this keeps happening, try refreshing the page.';
+      }
+      
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Our systems are experiencing a brief delay. Please try again in a moment.',
+        content: userMessage,
         type: 'text'
       }]);
     } finally {
@@ -526,27 +540,70 @@ export default function ChatPage() {
               >
                 <div className={`max-w-[80%] md:max-w-[70%] ${msg.role === 'user' ? 'bubble-user' : 'bubble-assistant'}`}>
                   <p className="text-sm md:text-base" style={{ lineHeight: 1.6 }}>
-                    {msg.content.split(/(\*\*[^*]+\*\*)/).map((part: string, i: number) => {
+                    {msg.content.split(/(\*\*[^*]+\*\*|\*[^*]+\*|\n)/).map((part: string, i: number) => {
                       if (part.startsWith('**') && part.endsWith('**')) {
                         return <strong key={i}>{part.slice(2, -2)}</strong>;
                       }
+                      if (part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) {
+                        return <em key={i} style={{ color: 'var(--text-muted)' }}>{part.slice(1, -1)}</em>;
+                      }
+                      if (part === '\n') return <br key={i} />;
                       return part;
                     })}
                   </p>
                   
-                  {/* Plan Card */}
+                  {/* Plan Card — Comprehensive */}
                   {msg.type === 'plan' && msg.data && (
                     <div className="mt-4 p-4 rounded-xl" style={{ background: 'var(--accent-light)', border: '1px solid var(--border-main)' }}>
-                      <p className="text-xs font-semibold mb-3" style={{ color: 'var(--accent-dark)' }}>📋 YOUR TRAVEL PLAN</p>
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs font-semibold" style={{ color: 'var(--accent-dark)' }}>📋 YOUR TRAVEL PLAN</p>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--accent-primary)', color: 'white' }}>Editable</span>
+                      </div>
                       {msg.data.title && (
                         <p className="text-sm font-bold mb-2" style={{ color: 'var(--text-primary)' }}>{msg.data.title}</p>
                       )}
-                      {msg.data.estimated_cost && (
-                        <p className="text-sm mb-2" style={{ color: 'var(--accent-dark)' }}>
-                          💰 Estimated Cost: ₹{msg.data.estimated_cost.toLocaleString()}
-                        </p>
+
+                      {/* Budget & Cost Bar */}
+                      <div className="flex items-center gap-3 mb-3 flex-wrap">
+                        {msg.data.estimated_cost && (
+                          <span className="text-xs px-2 py-1 rounded-full" style={{ background: '#d1fae5', color: '#065f46' }}>
+                            💰 ₹{msg.data.estimated_cost.toLocaleString()}
+                          </span>
+                        )}
+                        {msg.data.total_days && (
+                          <span className="text-xs px-2 py-1 rounded-full" style={{ background: '#dbeafe', color: '#1e40af' }}>
+                            📅 {msg.data.total_days} days
+                          </span>
+                        )}
+                        {msg.data.budget && msg.data.estimated_cost && (
+                          <span className="text-xs px-2 py-1 rounded-full" style={{
+                            background: msg.data.estimated_cost <= msg.data.budget ? '#d1fae5' : '#fee2e2',
+                            color: msg.data.estimated_cost <= msg.data.budget ? '#065f46' : '#991b1b'
+                          }}>
+                            {msg.data.estimated_cost <= msg.data.budget 
+                              ? `✅ Under budget by ₹${(msg.data.budget - msg.data.estimated_cost).toLocaleString()}`
+                              : `⚠️ Over budget by ₹${(msg.data.estimated_cost - msg.data.budget).toLocaleString()}`
+                            }
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Route Chain */}
+                      {msg.data.route_chain && msg.data.route_chain.length > 1 && (
+                        <div className="mb-4 p-3 rounded-lg" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}>
+                          <p className="text-[10px] font-bold mb-2" style={{ color: 'var(--accent-dark)' }}>🗺️ ROUTE</p>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {msg.data.route_chain.map((city: string, ci: number) => (
+                              <span key={ci} className="flex items-center gap-1">
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--accent-primary)', color: 'white' }}>{city}</span>
+                                {ci < msg.data.route_chain.length - 1 && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>→</span>}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       )}
-                      
+
+                      {/* Confidence Score */}
                       {msg.data.confidence_score && (
                         <div className="mb-4 p-3 rounded-lg" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}>
                           <div className="flex items-center justify-between mb-1">
@@ -555,55 +612,198 @@ export default function ChatPage() {
                               {msg.data.confidence_score}%
                             </span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
-                            <div className="h-1.5 rounded-full" style={{ width: `${msg.data.confidence_score}%`, backgroundColor: msg.data.confidence_score >= 80 ? '#10b981' : '#f59e0b' }}></div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div className="h-1.5 rounded-full transition-all" style={{ width: `${msg.data.confidence_score}%`, backgroundColor: msg.data.confidence_score >= 80 ? '#10b981' : '#f59e0b' }}></div>
                           </div>
-                          {msg.data.ragas_alignment_check && (
-                            <p className="text-[10px] leading-tight" style={{ color: 'var(--text-muted)' }}>
-                              <span className="font-semibold text-[10px]">RAGAS Check:</span> {msg.data.ragas_alignment_check}
+                        </div>
+                      )}
+
+                      {/* Agent Contributions */}
+                      {msg.data.agent_contributions && (
+                        <div className="mb-4 grid grid-cols-2 gap-2">
+                          {Object.entries(msg.data.agent_contributions).map(([agent, contribution]: [string, any], i: number) => (
+                            <div key={i} className="p-2 rounded-lg text-[10px]" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}>
+                              <span className="font-bold" style={{ color: 'var(--accent-dark)' }}>{agent.charAt(0).toUpperCase() + agent.slice(1)}:</span>{' '}
+                              <span style={{ color: 'var(--text-secondary)' }}>{String(contribution)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Day-by-Day Itinerary */}
+                      {msg.data.days && msg.data.days.map((day: any, di: number) => {
+                        const typeIcons: Record<string, string> = { food: '🍽️', place: '📍', hotel: '🏨', transport: '🚃', activity: '🎯' };
+                        const typeColors: Record<string, string> = { food: '#fef3c7', place: '#dbeafe', hotel: '#ede9fe', transport: '#cffafe', activity: '#d1fae5' };
+                        return (
+                        <div key={di} className="mb-3 p-3 rounded-lg" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <p className="text-xs font-bold" style={{ color: 'var(--accent-dark)' }}>Day {day.day}{day.city ? ` — ${day.city}` : ''}</p>
+                              {day.theme && <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{day.theme}</p>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {day.remaining_budget != null && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: '#d1fae5', color: '#065f46' }}>
+                                  ₹{day.remaining_budget.toLocaleString()} left
+                                </span>
+                              )}
+                              <Edit3 className="h-3 w-3" style={{ color: 'var(--text-muted)' }} />
+                            </div>
+                          </div>
+                          {day.activities && day.activities.map((act: any, ai: number) => {
+                            const actKey = `${di}-${ai}`;
+                            const isExpanded = expandedActivity === actKey;
+                            return (
+                            <div key={ai} className="mb-2">
+                              <div className="flex items-start gap-2">
+                                <span className="text-[10px] flex-shrink-0 font-mono" style={{ color: 'var(--accent-primary)', minWidth: '55px' }}>{act.time}</span>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[10px] px-1 rounded" style={{ background: typeColors[act.type] || '#f3f4f6' }}>
+                                      {typeIcons[act.type] || '•'} {act.type}
+                                    </span>
+                                    <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{act.name || act.description}</span>
+                                    {act.cost > 0 && <span className="text-[10px] font-mono" style={{ color: 'var(--accent-dark)' }}>₹{act.cost}</span>}
+                                  </div>
+                                  {act.details && <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{act.details}</p>}
+                                  {act.why_chosen && <p className="text-[10px] italic mt-0.5" style={{ color: '#10b981' }}>✨ {act.why_chosen}</p>}
+                                  
+                                  {/* More Button for Alternatives */}
+                                  {act.alternatives && act.alternatives.length > 0 && (
+                                    <button 
+                                      onClick={() => setExpandedActivity(isExpanded ? null : actKey)}
+                                      className="mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full transition-all hover:scale-105"
+                                      style={{ background: 'var(--accent-primary)', color: 'white' }}
+                                    >
+                                      {isExpanded ? '▲ Less' : `▼ More (${act.alternatives.length} options)`}
+                                    </button>
+                                  )}
+                                  
+                                  {/* Expanded Alternatives Panel */}
+                                  {isExpanded && act.alternatives && (
+                                    <div className="mt-2 space-y-1.5 p-2 rounded-lg animate-fade-in" style={{ background: '#fefce8', border: '1px solid #fde68a' }}>
+                                      <p className="text-[10px] font-bold" style={{ color: '#92400e' }}>🔄 Alternative Options:</p>
+                                      {act.alternatives.map((alt: any, altI: number) => (
+                                        <div key={altI} className="p-2 rounded-lg" style={{ background: 'white', border: '1px solid #e5e7eb' }}>
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{alt.name}</span>
+                                            <span className="text-xs font-mono" style={{ color: alt.cost > act.cost ? '#dc2626' : '#16a34a' }}>₹{alt.cost}</span>
+                                          </div>
+                                          <div className="flex items-center gap-1 mt-0.5">
+                                            {Array.from({length: 5}).map((_, si) => (
+                                              <span key={si} className="text-[8px]">{si < (alt.rating || 0) ? '⭐' : '☆'}</span>
+                                            ))}
+                                          </div>
+                                          {alt.pros && <p className="text-[10px] mt-0.5" style={{ color: '#16a34a' }}>✅ {alt.pros}</p>}
+                                          {alt.cons && <p className="text-[10px]" style={{ color: '#dc2626' }}>❌ {alt.cons}</p>}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            );
+                          })}
+                        </div>
+                        );
+                      })}
+
+                      {/* Budget Summary */}
+                      {msg.data.summary && (
+                        <div className="mt-4 p-3 rounded-lg" style={{ background: '#f0fdf4', border: '1px solid #86efac' }}>
+                          <p className="text-xs font-bold mb-2" style={{ color: '#065f46' }}>📊 TRIP SUMMARY</p>
+                          <div className="grid grid-cols-2 gap-2 text-[11px]">
+                            {msg.data.summary.total_transport_cost != null && (
+                              <div><span style={{ color: 'var(--text-muted)' }}>🚃 Transport:</span> <strong>₹{msg.data.summary.total_transport_cost.toLocaleString()}</strong></div>
+                            )}
+                            {msg.data.summary.total_food_cost != null && (
+                              <div><span style={{ color: 'var(--text-muted)' }}>🍽️ Food:</span> <strong>₹{msg.data.summary.total_food_cost.toLocaleString()}</strong></div>
+                            )}
+                            {msg.data.summary.total_hotel_cost != null && (
+                              <div><span style={{ color: 'var(--text-muted)' }}>🏨 Hotels:</span> <strong>₹{msg.data.summary.total_hotel_cost.toLocaleString()}</strong></div>
+                            )}
+                            {msg.data.summary.total_activities_cost != null && (
+                              <div><span style={{ color: 'var(--text-muted)' }}>🎯 Activities:</span> <strong>₹{msg.data.summary.total_activities_cost.toLocaleString()}</strong></div>
+                            )}
+                            {msg.data.summary.total_cost != null && (
+                              <div className="col-span-2 pt-2 mt-1" style={{ borderTop: '1px dashed var(--border-main)' }}>
+                                <span className="font-bold" style={{ color: 'var(--accent-dark)' }}>💰 Total: ₹{msg.data.summary.total_cost.toLocaleString()}</span>
+                              </div>
+                            )}
+                            {msg.data.summary.total_travel_time_hrs != null && (
+                              <div><span style={{ color: 'var(--text-muted)' }}>⏱️ Travel Time:</span> <strong>{msg.data.summary.total_travel_time_hrs}h</strong></div>
+                            )}
+                            {msg.data.summary.total_stops != null && (
+                              <div><span style={{ color: 'var(--text-muted)' }}>📍 Stops:</span> <strong>{msg.data.summary.total_stops}</strong></div>
+                            )}
+                          </div>
+                          {msg.data.summary.budget_status && (
+                            <p className="mt-2 text-xs font-semibold" style={{ color: msg.data.summary.budget_status.includes('Under') ? '#16a34a' : '#dc2626' }}>
+                              {msg.data.summary.budget_status}
                             </p>
+                          )}
+                          {msg.data.summary.key_highlights && (
+                            <div className="mt-2">
+                              {msg.data.summary.key_highlights.map((h: string, hi: number) => (
+                                <p key={hi} className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>🌟 {h}</p>
+                              ))}
+                            </div>
                           )}
                         </div>
                       )}
-                      {msg.data.days && msg.data.days.map((day: any, di: number) => (
-                        <div key={di} className="mb-3 p-3 rounded-lg plan-card plan-card-editable">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-xs font-bold" style={{ color: 'var(--accent-dark)' }}>Day {day.day}</p>
-                            <Edit3 className="h-3 w-3" style={{ color: 'var(--text-muted)' }} />
-                          </div>
-                          {day.activities && day.activities.map((act: any, ai: number) => (
-                            <p key={ai} className="text-xs mb-0.5" style={{ color: 'var(--text-secondary)' }}>
-                              {act.time} — {act.name || act.description} {act.cost ? `(₹${act.cost})` : ''}
-                            </p>
-                          ))}
-                        </div>
-                      ))}
+
+                      {/* Tips */}
                       {msg.data.tips && (
-                        <div className="mt-2">
+                        <div className="mt-3">
                           <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-dark)' }}>💡 Tips:</p>
                           {msg.data.tips.map((tip: string, ti: number) => (
                             <p key={ti} className="text-xs" style={{ color: 'var(--text-secondary)' }}>• {tip}</p>
                           ))}
                         </div>
                       )}
+                      {msg.data.personalization_notes && (
+                        <p className="mt-2 text-[10px] italic" style={{ color: 'var(--text-muted)' }}>
+                          ✨ {msg.data.personalization_notes}
+                        </p>
+                      )}
                     </div>
                   )}
+
+                  {/* Transport Route Cards */}
+                  {msg.type === 'text' && msg.role === 'assistant' && agentStatuses?.transport?.status === 'done' && (
+                    <>
+                      {/* This will render when transport data is available through plan rendering */}
+                    </>
+                  )}
+
+                  {/* Hotel Cards */}
                   {msg.type === 'hotel' && msg.data?.hotels && (
                     <div className="mt-4 space-y-2">
                       {msg.data.hotels.map((h: any, i: number) => (
                         <div key={i} className="p-3 rounded-xl" style={{ background: '#ede9fe', border: '1px solid #ddd6fe' }}>
                           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{h.name}</p>
                           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>⭐ {h.rating} star • ₹{h.price_per_night}/night</p>
+                          {h.note && h.note.includes('not configured') && (
+                            <p className="text-[10px] mt-1 italic" style={{ color: '#f59e0b' }}>ℹ️ Live pricing temporarily unavailable</p>
+                          )}
                         </div>
                       ))}
                     </div>
                   )}
+
+                  {/* Cab Comparison Cards */}
                   {msg.type === 'cab' && msg.data?.options && (
                     <div className="mt-4 space-y-2">
                       {msg.data.options.map((c: any, i: number) => (
                         <div key={i} className="p-3 rounded-xl" style={{ background: '#cffafe', border: '1px solid #a5f3fc' }}>
                           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{c.provider}</p>
-                          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>🚕 {c.vehicle_type} • ETA {c.eta} • ₹{c.price}</p>
+                          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                            🚕 {c.vehicle_type} • ETA {c.eta} • {c.price === 'N/A' ? 'Pricing unavailable' : `₹${c.price}`}
+                          </p>
+                          {c.note && c.note.includes('not configured') && (
+                            <p className="text-[10px] mt-1 italic" style={{ color: '#f59e0b' }}>ℹ️ Live pricing temporarily unavailable</p>
+                          )}
                         </div>
                       ))}
                     </div>
