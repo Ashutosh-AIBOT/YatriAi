@@ -141,6 +141,7 @@ async def smart_chat(state: TripState) -> TripState:
             "food": "restaurant and food recommendations",
             "places": "tourist attractions and places to visit",
             "maps": "route planning and directions",
+            "psychology": "analyzing their travel mood, hidden motivations, and deeply personalizing their upcoming journey. Respond in a very respectful, intuitive, and highly personalized manner.",
         }
         history_msgs.append(SystemMessage(
             content=SINGLE_AGENT_PROMPT.format(
