@@ -12,6 +12,8 @@ def should_dispatch(state: TripState) -> str:
     if state.get("target_agent") and state.get("current_stage", 1) < 8:
         return "run_single"
     if state.get("current_stage", 1) >= 8 and _has_required_plan_fields(state):
+        if state.get("skip_research"):
+            return "plan"
         return "dispatch"
     return "end"
 
@@ -33,6 +35,7 @@ def build_trip_graph():
         "end": END,
         "dispatch": "dispatch",
         "run_single": "run_single",
+        "plan": "plan",
     })
 
     # After dispatching all agents → build the plan

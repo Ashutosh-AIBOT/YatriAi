@@ -268,6 +268,86 @@ def _has_required_plan_fields(state: dict) -> bool:
     return True
 
 
+def _is_finalize_intent(text: str) -> bool:
+    return bool(re.search(r"\b(final|finalize|finalise|save|confirm|done|looks good|lock it)\b", text, re.IGNORECASE))
+
+
+def _is_update_intent(text: str) -> bool:
+    return bool(re.search(r"\b(change|update|edit|modify|make .* cheaper|replace|remove|add)\b", text, re.IGNORECASE))
+
+
+def _is_research_more_intent(text: str) -> bool:
+    return bool(re.search(r"\b(research more|search again|find better|better hotels?|better restaurants?|more places?|rerun|search more)\b", text, re.IGNORECASE))
+
+
+def _research_snapshot(state: dict) -> dict:
+    return {
+        "transport_results": state.get("transport_results"),
+        "cab_results": state.get("cab_results"),
+        "hotel_results": state.get("hotel_results"),
+        "food_results": state.get("food_results"),
+        "places_results": state.get("places_results"),
+        "map_results": state.get("map_results"),
+        "psychology_results": state.get("psychology_results"),
+        "agent_statuses": state.get("agent_statuses"),
+        "overall_confidence": state.get("overall_confidence"),
+    }
+
+
+async def _handle_plan_lifecycle_intent(state: dict, user_input: str) -> bool:
+    """Handle finalize/update intents without wasting a full research pass."""
+    existing_plan = state.get("final_plan")
+    if not isinstance(existing_plan, dict) or not existing_plan.get("days"):
+        return False
+
+    if _is_finalize_intent(user_input):
+        state["finalized_plan"] = existing_plan
+        state["plan_status"] = "finalized"
+        state.setdefault("messages", []).append({
+            "role": "assistant",
+            "content": "Saved. This trip plan is finalized and available in the sidebar under Saved Plans."
+        })
+        return True
+
+    if _is_update_intent(user_input) and not _is_research_more_intent(user_input):
+        prompt = f"""Update this existing travel plan using the user's requested change.
+Use the current plan and existing research only. Do not invent that fresh live research was performed.
+
+USER REQUEST: {user_input}
+CURRENT PLAN JSON: {json.dumps(existing_plan, default=str)}
+EXISTING RESEARCH SNAPSHOT: {json.dumps(state.get("last_research_snapshot") or _research_snapshot(state), default=str)}
+
+Return ONLY the complete updated plan JSON with the same overall schema and a valid "days" array."""
+        try:
+            response = await llm.ainvoke([HumanMessage(content=prompt)])
+            updated = _extract_first_json(response.content, dict)
+            if updated and updated.get("days"):
+                updated["plan_status"] = "draft"
+                state["final_plan"] = updated
+                state["plan_status"] = "draft"
+                state.setdefault("messages", []).append({
+                    "role": "assistant",
+                    "content": "I updated the draft plan using the research we already had. Review it, then tell me what to change or say final/save when it looks right."
+                })
+            else:
+                state["plan_status"] = "needs_update"
+                state.setdefault("messages", []).append({
+                    "role": "assistant",
+                    "content": "I understand the change, but I could not safely rewrite the full plan yet. Tell me the exact part to update, or ask me to research more."
+                })
+            return True
+        except Exception as e:
+            logger.warning(f"Draft plan update failed: {e}")
+            state["plan_status"] = "needs_update"
+            state.setdefault("messages", []).append({
+                "role": "assistant",
+                "content": "I could not update the draft cleanly. Please describe the edit again, or ask me to research more options."
+            })
+            return True
+
+    return False
+
+
 def _update_collection_stage(state: dict) -> None:
     """Keep the legacy stage number useful for tests and the frontend."""
     stage = 1
@@ -542,13 +622,28 @@ async def smart_chat(state: TripState) -> TripState:
         if detected_mode == "planning":
             state["chat_mode"] = "planning"
 
-        # If ready to plan, set stage to trigger agent dispatch. Also trust the
-        # collected state if the model extracted all required fields but forgot
-        # to set ready_to_plan=true.
+        # If ready to plan, ask for confirmation to avoid burning tokens on full research.
+        # If user explicitly confirms, THEN dispatch.
         if _has_required_plan_fields(state):
-            state["current_stage"] = 8  # Triggers dispatch
-            if "activate" not in reply_text.lower() and "everything i need" not in reply_text.lower():
-                reply_text += "\n\n✨ I have everything I need! Let me activate all my AI agents to create your personalized travel plan..."
+            if state.get("current_stage", 1) >= 8:
+                # Already have a plan. Check if user wants to just update it or do more research.
+                if _is_research_more_intent(user_input):
+                    state["research_pass"] = 0 # Force re-research
+                    state["skip_research"] = False
+                    reply_text += "\n\n✨ Got it! I'll do some more deep research for better options..."
+                elif _is_update_intent(user_input):
+                    state["skip_research"] = True
+                    reply_text += "\n\n✨ Got it! I'll update your itinerary now without doing a full re-search."
+                else:
+                    state["skip_research"] = True
+            elif _is_finalize_intent(user_input) or ready:
+                state["current_stage"] = 8  # Triggers dispatch
+                state["skip_research"] = False
+                if "activate" not in reply_text.lower() and "everything i need" not in reply_text.lower():
+                    reply_text += "\n\n✨ Awesome! I'll activate my AI agents to create your final personalized travel plan now..."
+            elif state.get("current_stage", 1) < 8:
+                state["current_stage"] = 7 # Waiting for confirmation
+                reply_text += "\n\n✨ I think I have all the details needed to create your plan! Do you want to change anything, or should I go ahead and finalize the research?"
 
         state.setdefault("messages", []).append({
             "role": "assistant",

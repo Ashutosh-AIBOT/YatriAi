@@ -51,6 +51,7 @@ class TripState(TypedDict):
     ragas_result: Optional[Dict[str, Any]]  # RAGAS alignment check result
     research_pass: Optional[int]            # Which pass of research (1=first, 2=re-research)
     target_agent: Optional[str]             # If set, only run this single agent
+    skip_research: Optional[bool]           # Skip heavy research when just updating a plan
 
     # ─── Wanderlust Motivator Agent ───
     wanderlust_enabled: Optional[bool]       # Toggle on/off
@@ -71,4 +72,8 @@ class TripState(TypedDict):
 
     # Final plan
     final_plan: Optional[Dict]
+    plan_status: Optional[str]  # "draft" | "finalized" | "needs_update"
+    finalized_plan: Optional[Dict]
+    last_research_snapshot: Optional[Dict]
+    research_count: Optional[int]
     error: Optional[str]

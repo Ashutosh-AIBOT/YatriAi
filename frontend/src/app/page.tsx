@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight, Globe2, Map, Zap, Sparkles, Navigation, Car, Hotel, Utensils, MapPin, ChevronRight, Star, Shield, Clock, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -19,6 +20,14 @@ const staggerContainer = {
 };
 
 export default function Home() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    // Check if a token cookie exists on the client side
+    const hasToken = document.cookie.split(';').some((item) => item.trim().startsWith('token='));
+    setIsLoggedIn(hasToken);
+  }, []);
+
   return (
     <main className="min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* ═══════════════ NAV ═══════════════ */}
@@ -33,12 +42,20 @@ export default function Home() {
           <a href="#faq" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>FAQ</a>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/login" className="text-sm font-medium" style={{ color: 'var(--text-secondary)', padding: '8px 16px' }}>
-            Sign in
-          </Link>
-          <Link href="/register" className="clay-button" style={{ padding: '8px 20px', fontSize: '14px', borderRadius: '8px' }}>
-            Get started <ArrowRight className="h-4 w-4" />
-          </Link>
+          {isLoggedIn ? (
+            <Link href="/chat" className="clay-button" style={{ padding: '8px 20px', fontSize: '14px', borderRadius: '8px' }}>
+              Go to Dashboard <ArrowRight className="h-4 w-4" />
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="text-sm font-medium" style={{ color: 'var(--text-secondary)', padding: '8px 16px' }}>
+                Sign in
+              </Link>
+              <Link href="/register" className="clay-button" style={{ padding: '8px 20px', fontSize: '14px', borderRadius: '8px' }}>
+                Get started <ArrowRight className="h-4 w-4" />
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -68,12 +85,20 @@ export default function Home() {
           </motion.p>
 
           <motion.div variants={fadeUp} custom={3} className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/chat" className="clay-button" style={{ padding: '14px 32px', fontSize: '16px', borderRadius: '10px' }}>
-              Start Planning <ArrowRight className="h-5 w-5" />
-            </Link>
-            <Link href="/register" className="clay-button-ghost" style={{ padding: '14px 32px', fontSize: '16px', borderRadius: '10px' }}>
-              Create Account
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/chat" className="clay-button" style={{ padding: '14px 32px', fontSize: '16px', borderRadius: '10px' }}>
+                Go to Dashboard <ArrowRight className="h-5 w-5" />
+              </Link>
+            ) : (
+              <>
+                <Link href="/chat" className="clay-button" style={{ padding: '14px 32px', fontSize: '16px', borderRadius: '10px' }}>
+                  Start Planning <ArrowRight className="h-5 w-5" />
+                </Link>
+                <Link href="/register" className="clay-button-ghost" style={{ padding: '14px 32px', fontSize: '16px', borderRadius: '10px' }}>
+                  Create Account
+                </Link>
+              </>
+            )}
           </motion.div>
         </motion.div>
       </section>
