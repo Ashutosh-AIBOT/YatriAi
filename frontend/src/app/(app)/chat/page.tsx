@@ -947,6 +947,34 @@ export default function ChatPage() {
                       ))}
                     </div>
                   )}
+
+                  {/* Food Cards */}
+                  {msg.type === 'food' && msg.data?.restaurants && (
+                    <div className="mt-4 space-y-2">
+                      {msg.data.restaurants.map((r: any, i: number) => (
+                        <div key={i} className="p-3 rounded-xl" style={{ background: '#fef3c7', border: '1px solid #fde68a' }}>
+                          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{r.name}</p>
+                          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>⭐ {r.rating} star • {(r.cuisines || []).join(', ')}</p>
+                          {r.veg_only && <p className="text-[10px] mt-1 font-semibold" style={{ color: '#16a34a' }}>🌱 Pure Veg</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Places Cards */}
+                  {msg.type === 'places' && msg.data?.places && (
+                    <div className="mt-4 space-y-2">
+                      {msg.data.places.map((p: any, i: number) => (
+                        <div key={i} className="p-3 rounded-xl" style={{ background: '#ffe4e6', border: '1px solid #fecdd3' }}>
+                          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
+                          <p className="text-xs capitalize" style={{ color: 'var(--text-secondary)' }}>
+                            ⭐ {p.rating} star • {p.type?.replace(/_/g, ' ')}
+                            {p.distance_km && ` • ~${p.distance_km}km away`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

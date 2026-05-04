@@ -52,6 +52,9 @@ class ChatResponse(BaseModel):
     ragas_result: Optional[Dict] = None
     wanderlust_message: Optional[str] = None    # Latest motivational message
     user_prefs: Optional[Dict] = None
+    plan_status: Optional[str] = None
+    finalized_plan: Optional[Dict] = None
+    has_finalized_plan: bool = False
 
 # ---- Lifespan (Startup / Shutdown) ----
 
@@ -109,7 +112,8 @@ def _init_state(req: ChatRequest) -> dict:
         "transport_results": None, "cab_results": None,
         "hotel_results": None, "food_results": None,
         "places_results": None, "map_results": None,
-        "final_plan": None, "error": None,
+        "final_plan": None, "plan_status": None, "finalized_plan": None,
+        "last_research_snapshot": None, "research_count": 0, "error": None,
         # New orchestration fields
         "agent_statuses": None,
         "overall_confidence": None,
@@ -189,6 +193,9 @@ async def get_history():
                         "trip_id": state.get("trip_id"),
                         "origin": state.get("origin"),
                         "destination": state.get("destination"),
+                        "plan_status": state.get("plan_status"),
+                        "has_finalized_plan": bool(state.get("finalized_plan")),
+                        "plan_title": (state.get("finalized_plan") or state.get("final_plan") or {}).get("title"),
                         "preview": preview,
                         "updated_at": state.get("updated_at", "")
                     })
@@ -284,30 +291,48 @@ async def chat(req: ChatRequest):
         ui_type = "text"
         ui_data = None
 
-        if result.get("final_plan") and result["final_plan"].get("days"):
-            ui_type = "plan"
-            ui_data = result["final_plan"]
-        elif result.get("transport_results") and not isinstance(result["transport_results"], str):
-            ui_type = "transport"
-            ui_data = result["transport_results"]
-        elif result.get("cab_results") and not isinstance(result["cab_results"], str):
-            ui_type = "cab"
-            ui_data = result["cab_results"]
-        elif result.get("hotel_results") and not isinstance(result["hotel_results"], str):
-            ui_type = "hotel"
-            ui_data = result["hotel_results"]
-        elif result.get("food_results") and not isinstance(result["food_results"], str):
-            ui_type = "food"
-            ui_data = result["food_results"]
-        elif result.get("places_results") and not isinstance(result["places_results"], str):
-            ui_type = "places"
-            ui_data = result["places_results"]
-        elif result.get("map_results") and not isinstance(result["map_results"], str):
-            ui_type = "map"
-            ui_data = result["map_results"]
-        elif result.get("psychology_results") and not isinstance(result["psychology_results"], str):
-            ui_type = "psychology"
-            ui_data = result["psychology_results"]
+        if req.target_agent:
+            target_map = {
+                "transport": ("transport", "transport_results"),
+                "cabs": ("cab", "cab_results"),
+                "hotels": ("hotel", "hotel_results"),
+                "food": ("food", "food_results"),
+                "places": ("places", "places_results"),
+                "maps": ("map", "map_results"),
+                "psychology": ("psychology", "psychology_results"),
+            }
+            if req.target_agent in target_map:
+                mapped_type, result_key = target_map[req.target_agent]
+                if result.get(result_key) and not isinstance(result[result_key], str):
+                    ui_type = mapped_type
+                    ui_data = result[result_key]
+        
+        # If no targeted agent override, fall back to checking what got generated
+        if ui_type == "text":
+            if result.get("final_plan") and result["final_plan"].get("days"):
+                ui_type = "plan"
+                ui_data = result["final_plan"]
+            elif result.get("transport_results") and not isinstance(result["transport_results"], str):
+                ui_type = "transport"
+                ui_data = result["transport_results"]
+            elif result.get("cab_results") and not isinstance(result["cab_results"], str):
+                ui_type = "cab"
+                ui_data = result["cab_results"]
+            elif result.get("hotel_results") and not isinstance(result["hotel_results"], str):
+                ui_type = "hotel"
+                ui_data = result["hotel_results"]
+            elif result.get("food_results") and not isinstance(result["food_results"], str):
+                ui_type = "food"
+                ui_data = result["food_results"]
+            elif result.get("places_results") and not isinstance(result["places_results"], str):
+                ui_type = "places"
+                ui_data = result["places_results"]
+            elif result.get("map_results") and not isinstance(result["map_results"], str):
+                ui_type = "map"
+                ui_data = result["map_results"]
+            elif result.get("psychology_results") and not isinstance(result["psychology_results"], str):
+                ui_type = "psychology"
+                ui_data = result["psychology_results"]
 
         return ChatResponse(
             trip_id=result.get("trip_id", req.trip_id),
@@ -323,6 +348,9 @@ async def chat(req: ChatRequest):
             ragas_result=result.get("ragas_result"),
             wanderlust_message=(result.get("wanderlust_results") or {}).get("wanderlust_message"),
             user_prefs=result.get("user_prefs"),
+            plan_status=result.get("plan_status"),
+            finalized_plan=result.get("finalized_plan"),
+            has_finalized_plan=bool(result.get("finalized_plan")),
         )
 
     except Exception as e:
@@ -333,7 +361,10 @@ async def chat(req: ChatRequest):
             message=f"I'm sorry, something went wrong on my end. Please try again. (Error: {str(e)[:100]})",
             stage=1,
             ui_type="text",
-            chat_mode="chat"
+            chat_mode="chat",
+            plan_status=None,
+            finalized_plan=None,
+            has_finalized_plan=False,
         )
 
 
@@ -458,6 +489,9 @@ async def chat_stream(req: ChatRequest):
                 "ragas_result": result.get("ragas_result"),
                 "wanderlust_message": (result.get("wanderlust_results") or {}).get("wanderlust_message"),
                 "user_prefs": result.get("user_prefs"),
+                "plan_status": result.get("plan_status"),
+                "finalized_plan": result.get("finalized_plan"),
+                "has_finalized_plan": bool(result.get("finalized_plan")),
             })
 
             yield _sse_event("done", {})
