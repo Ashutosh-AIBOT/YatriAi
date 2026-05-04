@@ -13,6 +13,7 @@ from ..agents.hotel import search as hotel_search
 from ..agents.food import find as food_find
 from ..agents.places import discover as places_discover
 from ..agents.maps import build_route as map_route
+from ..agents.psychology import analyze_psychology
 from ..agents.wanderlust import motivate as wanderlust_motivate, suggest_best_places
 from ..agents.base import AgentProtocol
 from ..config import settings
@@ -257,6 +258,7 @@ async def dispatch_agents(state: TripState) -> TripState:
         "food": ("food_results", food_find),
         "places": ("places_results", places_discover),
         "maps": ("map_results", map_route),
+        "psychology": ("psychology_results", analyze_psychology),
     }
 
     # Check if only a single agent is targeted
@@ -365,6 +367,7 @@ async def build_plan(state: TripState) -> TripState:
             "interest_tags": state.get("interest_tags"),
             "hotel_stars": state.get("hotel_stars"),
             "user_prefs": state.get("user_prefs", {}),  # Global personalized DOS/DONTS
+            "psychology": state.get("psychology_results", {}), # Psychological profile
             "overall_confidence": state.get("overall_confidence", 0),
             "agent_statuses": {
                 k: {"status": v.get("status"), "confidence": v.get("confidence")}
@@ -381,11 +384,12 @@ You must now synthesize their data (A2A protocol) into a highly personalized tra
 
 CRITICAL INSTRUCTIONS:
 1. You MUST strictly adhere to the user's personal preferences: "{prefs_text}"
-2. Evaluate how well the plan aligns with preferences → output a confidence_score (0-100)
-3. Perform a RAGAS alignment check — rate how relevant, accurate, grounded, and specific the plan is
-4. If any agent had low confidence, note it as a caveat in tips
-5. Only show information that is RELEVANT to this specific traveler
-6. The Main Agent (you) decides what to show and what to hide based on personalization
+2. You MUST use the psychological profile to manipulate and motivate the user effectively: {json.dumps(state.get("psychology_results", {}))}
+3. Evaluate how well the plan aligns with preferences → output a confidence_score (0-100)
+4. Perform a RAGAS alignment check — rate how relevant, accurate, grounded, and specific the plan is
+5. If any agent had low confidence, note it as a caveat in tips
+6. Only show information that is RELEVANT to this specific traveler
+7. The Main Agent (you) decides what to show and what to hide based on personalization
 
 Agent Research Data: {json.dumps(context, default=str)}
 

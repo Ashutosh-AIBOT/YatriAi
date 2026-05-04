@@ -154,9 +154,65 @@ async def health():
         "version": "3.0.0",
         "redis": redis_status,
         "llm": "groq-llama-3.1-8b-instant",
-        "agents": ["transport", "cabs", "hotels", "food", "places", "maps"],
+        "agents": ["transport", "cabs", "hotels", "food", "places", "maps", "psychology"],
         "features": ["a2a", "confidence_scoring", "ragas_check", "streaming"]
     }
+
+@app.get("/api/v1/history")
+async def get_history():
+    """Fetch all past chat sessions from Redis."""
+    try:
+        r = await get_redis()
+        if not r:
+            return {"history": []}
+            
+        keys = await r.keys("trip_state:*")
+        history = []
+        for key in keys:
+            raw = await r.get(key)
+            if raw:
+                try:
+                    state = json.loads(raw)
+                    # Extract preview data
+                    session_id = key.split(":")[1]
+                    messages = state.get("messages", [])
+                    preview = "No messages yet"
+                    if messages:
+                        preview = messages[-1].get("content", "")[:50] + "..."
+                        
+                    history.append({
+                        "session_id": session_id,
+                        "trip_id": state.get("trip_id"),
+                        "origin": state.get("origin"),
+                        "destination": state.get("destination"),
+                        "preview": preview,
+                        "updated_at": state.get("updated_at", "")
+                    })
+                except Exception:
+                    pass
+        return {"history": history}
+    except Exception as e:
+        logger.error(f"Error fetching history: {e}")
+        return {"history": []}
+
+@app.get("/api/v1/history/{session_id}")
+async def get_session(session_id: str):
+    """Fetch a specific session."""
+    try:
+        r = await get_redis()
+        if not r:
+            raise HTTPException(status_code=503, detail="Redis unavailable")
+        
+        raw = await r.get(f"trip_state:{session_id}")
+        if not raw:
+            raise HTTPException(status_code=404, detail="Session not found")
+            
+        return json.loads(raw)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching session {session_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @app.post("/api/v1/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):

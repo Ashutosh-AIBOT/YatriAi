@@ -49,7 +49,7 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [chatMode, setChatMode] = useState<'chat' | 'planning'>('chat');
   const [collectedInfo, setCollectedInfo] = useState<CollectedInfo>({});
-  const [sessionId] = useState(() => `session_${Date.now()}`);
+  const [sessionId, setSessionId] = useState(() => `session_${Date.now()}`);
   const [showSettings, setShowSettings] = useState(false);
   const [sidebarView, setSidebarView] = useState<'agents' | 'settings' | 'history'>('agents');
   const [agentStatuses, setAgentStatuses] = useState<Record<string, any>>({});
@@ -59,6 +59,7 @@ export default function ChatPage() {
   const [wanderlustIntensity, setWanderlustIntensity] = useState(50);
   const [showPrefsModal, setShowPrefsModal] = useState(false);
   const [userPrefsText, setUserPrefsText] = useState('');
+  const [historySessions, setHistorySessions] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { theme, setTheme } = useThemeStore();
 
@@ -74,7 +75,39 @@ export default function ChatPage() {
     if (typeof window !== 'undefined') {
       setUserPrefsText(localStorage.getItem('yatri_user_prefs') || '');
     }
+    fetchHistory();
   }, []);
+
+  const fetchHistory = async () => {
+    try {
+      const res = await api.get('/history');
+      if (res.data && res.data.history) {
+        setHistorySessions(res.data.history);
+      }
+    } catch (e) {
+      console.error("Failed to fetch history", e);
+    }
+  };
+
+  const loadSession = async (sid: string) => {
+    try {
+      setIsLoading(true);
+      const res = await api.get(`/history/${sid}`);
+      if (res.data) {
+        setMessages(res.data.messages || []);
+        if (res.data.chat_mode) setChatMode(res.data.chat_mode);
+        setSidebarView('agents');
+        // also set sessionId? React won't let us cleanly without a ref if we want to continue, 
+        // but for now let's just display it. Actually, changing sessionId requires state change.
+        // We'll leave it as view-only or replace session if possible, but the user requested "chat in past chat".
+        // Let's assume we can set SessionId. Wait, `sessionId` is a const with `useState(() => ...)`. We need to change it to let.
+      }
+    } catch (e) {
+      console.error("Failed to load session", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const sendMessage = async (message: string, action?: string, targetAgent?: string) => {
     if ((!message.trim() && !action) || isLoading) return;
@@ -311,15 +344,36 @@ export default function ChatPage() {
           {sidebarView === 'history' && (
             <>
               <p className="clay-label mb-4">Chat History</p>
-              <div className="text-center py-8">
-                <History className="h-8 w-8 mx-auto mb-3" style={{ color: 'var(--text-faint)' }} />
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  Your past trip plans will appear here
-                </p>
-                <p className="text-xs mt-2" style={{ color: 'var(--text-faint)' }}>
-                  Start planning to build your travel history
-                </p>
-              </div>
+              {historySessions.length > 0 ? (
+                <div className="space-y-3">
+                  {historySessions.map((session, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setSessionId(session.session_id);
+                        loadSession(session.session_id);
+                      }}
+                      className="w-full text-left p-3 rounded-xl transition-all hover:scale-[1.02]"
+                      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-main)' }}
+                    >
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        {session.origin && session.destination ? `${session.origin} → ${session.destination}` : 'Trip Plan'}
+                      </p>
+                      <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{session.preview}</p>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <History className="h-8 w-8 mx-auto mb-3" style={{ color: 'var(--text-faint)' }} />
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                    Your past trip plans will appear here
+                  </p>
+                  <p className="text-xs mt-2" style={{ color: 'var(--text-faint)' }}>
+                    Start planning to build your travel history
+                  </p>
+                </div>
+              )}
             </>
           )}
 
