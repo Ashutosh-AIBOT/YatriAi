@@ -99,9 +99,10 @@ def _init_state(req: ChatRequest) -> dict:
         "messages": [],
         "origin": None, "destination": None,
         "trip_type": None, "stop_count": None,
-        "requested_stops": None, "transport_modes": None,
-        "start_date": None, "end_date": None,
-        "total_budget": None, "group_size": 1,
+        "requested_stops": None, "selected_places": None,
+        "preferred_place_candidates": None, "transport_modes": None,
+        "start_date": None, "end_date": None, "trip_days": None,
+        "total_budget": None, "group_size": None,
         "hotel_stars": None, "is_vegetarian": None,
         "cuisine_preferences": None, "interest_tags": None,
         "allow_suggestions": True,
@@ -127,9 +128,9 @@ def _get_collected_info(state: dict) -> dict:
     """Return what we know about the trip so far."""
     collected = {}
     for field in ["origin", "destination", "trip_type", "transport_modes",
-                   "start_date", "end_date", "total_budget", "group_size",
+                   "start_date", "end_date", "trip_days", "total_budget", "group_size",
                    "hotel_stars", "is_vegetarian", "cuisine_preferences",
-                   "interest_tags"]:
+                   "interest_tags", "requested_stops", "selected_places"]:
         val = state.get(field)
         if val is not None:
             collected[field] = val

@@ -13,12 +13,15 @@ interface CollectedInfo {
   transport_modes?: string[];
   start_date?: string;
   end_date?: string;
+  trip_days?: number;
   total_budget?: number;
   group_size?: number;
   hotel_stars?: number;
   is_vegetarian?: boolean;
   cuisine_preferences?: string[];
   interest_tags?: string[];
+  requested_stops?: string[];
+  selected_places?: Array<Record<string, unknown>>;
 }
 
 const INFO_LABELS: Record<string, string> = {
@@ -28,12 +31,37 @@ const INFO_LABELS: Record<string, string> = {
   transport_modes: "Transport",
   start_date: "Start Date",
   end_date: "End Date",
+  trip_days: "Days",
   total_budget: "Budget",
   group_size: "Group Size",
   hotel_stars: "Hotel Stars",
   is_vegetarian: "Vegetarian",
   cuisine_preferences: "Cuisine",
-  interest_tags: "Interests"
+  interest_tags: "Interests",
+  requested_stops: "Places",
+  selected_places: "Selected Places"
+};
+
+const hydrateMessages = (rawMessages: any[] = [], finalPlan?: any) => {
+  const hydrated = rawMessages.map((msg, index) => ({
+    id: msg.id || `${msg.role || 'message'}_${index}_${Date.now()}`,
+    role: msg.role || 'assistant',
+    content: msg.content || '',
+    type: msg.type || 'text',
+    data: msg.data,
+  }));
+
+  if (finalPlan) {
+    hydrated.push({
+      id: `plan_${Date.now()}`,
+      role: 'assistant',
+      content: 'Here is the saved travel plan.',
+      type: 'plan',
+      data: finalPlan,
+    });
+  }
+
+  return hydrated;
 };
 
 export default function ChatPage() {
@@ -59,6 +87,8 @@ export default function ChatPage() {
   const [wanderlustIntensity, setWanderlustIntensity] = useState(50);
   const [psychologyEnabled, setPsychologyEnabled] = useState(true);
   const [expandedActivity, setExpandedActivity] = useState<string | null>(null);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [planDrafts, setPlanDrafts] = useState<Record<string, string>>({});
   const [showPrefsModal, setShowPrefsModal] = useState(false);
   const [userPrefsText, setUserPrefsText] = useState('');
   const [historySessions, setHistorySessions] = useState<any[]>([]);
@@ -96,8 +126,28 @@ export default function ChatPage() {
       setIsLoading(true);
       const res = await api.get(`/history/${sid}`);
       if (res.data) {
-        setMessages(res.data.messages || []);
+        setMessages(hydrateMessages(res.data.messages || [], res.data.final_plan));
         if (res.data.chat_mode) setChatMode(res.data.chat_mode);
+        if (res.data.agent_statuses) setAgentStatuses(res.data.agent_statuses);
+        if (res.data.overall_confidence != null) setOverallConfidence(res.data.overall_confidence);
+        if (res.data.ragas_result) setRagasResult(res.data.ragas_result);
+        setCollectedInfo({
+          origin: res.data.origin,
+          destination: res.data.destination,
+          trip_type: res.data.trip_type,
+          transport_modes: res.data.transport_modes,
+          start_date: res.data.start_date,
+          end_date: res.data.end_date,
+          trip_days: res.data.trip_days,
+          total_budget: res.data.total_budget,
+          group_size: res.data.group_size,
+          hotel_stars: res.data.hotel_stars,
+          is_vegetarian: res.data.is_vegetarian,
+          cuisine_preferences: res.data.cuisine_preferences,
+          interest_tags: res.data.interest_tags,
+          requested_stops: res.data.requested_stops,
+          selected_places: res.data.selected_places,
+        } as CollectedInfo);
         setSidebarView('agents');
         // also set sessionId? React won't let us cleanly without a ref if we want to continue, 
         // but for now let's just display it. Actually, changing sessionId requires state change.
@@ -276,7 +326,7 @@ export default function ChatPage() {
                               {INFO_LABELS[key] || key}
                             </p>
                             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)', letterSpacing: '-0.2px' }}>
-                              {Array.isArray(value) ? value.join(', ') : 
+                              {Array.isArray(value) ? value.map((item: any) => typeof item === 'object' ? item.name || JSON.stringify(item) : item).join(', ') :
                                typeof value === 'boolean' ? (value ? 'Yes' : 'No') :
                                typeof value === 'number' ? (key === 'total_budget' ? `₹${value.toLocaleString()}` : String(value)) :
                                String(value)}
@@ -538,7 +588,7 @@ export default function ChatPage() {
                 key={msg.id}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}
               >
-                <div className={`max-w-[80%] md:max-w-[70%] ${msg.role === 'user' ? 'bubble-user' : 'bubble-assistant'}`}>
+                <div className={`${msg.type === 'plan' ? 'w-full max-w-none md:max-w-5xl' : 'max-w-[80%] md:max-w-[70%]'} ${msg.role === 'user' ? 'bubble-user' : 'bubble-assistant'}`}>
                   <p className="text-sm md:text-base" style={{ lineHeight: 1.6 }}>
                     {msg.content.split(/(\*\*[^*]+\*\*|\*[^*]+\*|\n)/).map((part: string, i: number) => {
                       if (part.startsWith('**') && part.endsWith('**')) {
@@ -555,10 +605,50 @@ export default function ChatPage() {
                   {/* Plan Card — Comprehensive */}
                   {msg.type === 'plan' && msg.data && (
                     <div className="mt-4 p-4 rounded-xl" style={{ background: 'var(--accent-light)', border: '1px solid var(--border-main)' }}>
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center justify-between gap-3 mb-3">
                         <p className="text-xs font-semibold" style={{ color: 'var(--accent-dark)' }}>📋 YOUR TRAVEL PLAN</p>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--accent-primary)', color: 'white' }}>Editable</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingPlanId(editingPlanId === msg.id ? null : msg.id);
+                              setPlanDrafts(prev => ({
+                                ...prev,
+                                [msg.id]: prev[msg.id] || JSON.stringify(msg.data, null, 2),
+                              }));
+                            }}
+                            className="text-[10px] px-2 py-1 rounded-full font-semibold"
+                            style={{ background: 'var(--accent-primary)', color: 'white' }}
+                          >
+                            {editingPlanId === msg.id ? 'Close Editor' : 'Edit Plan'}
+                          </button>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--bg-surface)', color: 'var(--accent-dark)', border: '1px solid var(--border-main)' }}>Saved</span>
+                        </div>
                       </div>
+                      {editingPlanId === msg.id && (
+                        <div className="mb-4">
+                          <textarea
+                            value={planDrafts[msg.id] || JSON.stringify(msg.data, null, 2)}
+                            onChange={(e) => setPlanDrafts(prev => ({ ...prev, [msg.id]: e.target.value }))}
+                            className="w-full min-h-64 p-3 rounded-lg font-mono text-xs focus:outline-none"
+                            style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-main)' }}
+                          />
+                          <button
+                            onClick={() => {
+                              try {
+                                const parsed = JSON.parse(planDrafts[msg.id]);
+                                setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, data: parsed } : m));
+                                setEditingPlanId(null);
+                              } catch {
+                                alert('Plan JSON is not valid yet.');
+                              }
+                            }}
+                            className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                            style={{ background: 'var(--text-primary)', color: 'var(--bg-primary)' }}
+                          >
+                            Apply Edits
+                          </button>
+                        </div>
+                      )}
                       {msg.data.title && (
                         <p className="text-sm font-bold mb-2" style={{ color: 'var(--text-primary)' }}>{msg.data.title}</p>
                       )}

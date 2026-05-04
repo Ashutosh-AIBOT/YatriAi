@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, END
 from .state import TripState
-from .nodes import smart_chat, dispatch_agents, build_plan, run_single_agent
+from .nodes import smart_chat, dispatch_agents, build_plan, run_single_agent, _has_required_plan_fields
 
 
 def should_dispatch(state: TripState) -> str:
@@ -11,7 +11,7 @@ def should_dispatch(state: TripState) -> str:
     """
     if state.get("target_agent") and state.get("current_stage", 1) < 8:
         return "run_single"
-    if state.get("current_stage", 1) >= 8:
+    if state.get("current_stage", 1) >= 8 and _has_required_plan_fields(state):
         return "dispatch"
     return "end"
 

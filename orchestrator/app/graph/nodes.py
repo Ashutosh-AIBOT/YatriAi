@@ -29,6 +29,13 @@ REQUIRED_PLAN_FIELDS = {
     "transport_modes",
 }
 
+LIST_FIELDS = {
+    "transport_modes",
+    "requested_stops",
+    "interest_tags",
+    "cuisine_preferences",
+}
+
 llm = ChatGroq(
     model="llama-3.1-8b-instant",
     temperature=0.4,
@@ -53,16 +60,18 @@ You speak like a trusted friend who genuinely cares about the user's travel expe
 == TRIP PLANNING FLOW (MUST FOLLOW THIS ORDER) ==
 When the user wants to plan a trip, collect info in THIS priority order, ONE question at a time:
 
-STEP 1: "Where would you like to go?" (destination) — Ask this FIRST, always.
+STEP 0: If personal preferences exist, summarize them briefly and ask whether to use them for this trip. Do not ask again after the user confirms or overrides them.
+STEP 1: "Where would you like to go?" (destination) — Ask this FIRST if unknown.
 STEP 2: "Where will you be traveling from?" (origin) — If not known from preferences.
-STEP 3: "How many people are traveling?" (group_size)
-STEP 4: "What's your budget for this trip?" (total_budget in INR)
-STEP 5: "Is this an urgent/direct trip, or do you want to explore along the way?" (trip_type: "urgent" or "explore")
-STEP 6: "How would you like to travel — flight, train, bus, or a mix?" (transport_modes)
-STEP 7: "When are you planning to go, and for how many days?" (start_date, end_date)
-STEP 8: "Any hotel preference — budget, mid-range, or luxury?" (hotel_stars)
-STEP 9: "Any food preferences? Vegetarian? Favorite cuisines?" (is_vegetarian, cuisine_preferences)
-STEP 10: "What interests you most — forts, nature, shopping, nightlife, temples, adventure?" (interest_tags)
+STEP 3: Suggest 4-6 visit-worthy places near/inside the destination or route, with approximate distance from destination/route, and ask which ones they want. Store choices in requested_stops or selected_places.
+STEP 4: "How many people are traveling?" (group_size)
+STEP 5: "What's your budget for this trip?" (total_budget in INR)
+STEP 6: "Is this an urgent/direct trip, or do you want to explore along the way?" (trip_type: "urgent" or "explore")
+STEP 7: "How would you like to travel — flight, train, bus, cab, or a mix?" (transport_modes)
+STEP 8: "When are you planning to go, and for how many days?" (start_date, end_date, trip_days)
+STEP 9: "Any hotel preference — budget, mid-range, luxury, family-friendly, near station/attractions?" (hotel_stars or hotel preference text)
+STEP 10: "Any food preferences? Vegetarian? Favorite cuisines?" (is_vegetarian, cuisine_preferences)
+STEP 11: "What interests you most — forts, nature, shopping, nightlife, temples, adventure?" (interest_tags)
 
 == SMART BEHAVIOR ==
 - CHECK USER PREFERENCES FIRST: If you already know their origin, diet, or likes from saved preferences, DON'T re-ask. Say: "I see you usually travel from Kanpur — shall I use that as your starting point?"
@@ -74,7 +83,9 @@ STEP 10: "What interests you most — forts, nature, shopping, nightlife, temple
 
 == WHEN TO TRIGGER PLANNING ==
 Set ready_to_plan to true ONLY when you have ALL of these:
-✅ origin, ✅ destination, ✅ group_size, ✅ total_budget, ✅ trip_type, ✅ transport_modes
+✅ origin, ✅ destination, ✅ at least one selected/requested place or interest tag,
+✅ group_size, ✅ total_budget, ✅ trip_type, ✅ transport_modes,
+✅ dates or trip_days
 When ready, say something like: "Perfect! I have everything I need. Let me activate my 7 AI agents to find the best routes, hotels, food, and experiences for you!"
 
 == RESPONSE FORMAT ==
@@ -160,14 +171,15 @@ def _normalize_extracted(extracted: dict) -> dict:
 
     normalized = dict(extracted)
 
-    if isinstance(normalized.get("transport_modes"), str):
-        normalized["transport_modes"] = [
-            mode.strip()
-            for mode in re.split(r"[,/]| and ", normalized["transport_modes"])
-            if mode.strip()
-        ]
+    for list_key in LIST_FIELDS:
+        if isinstance(normalized.get(list_key), str):
+            normalized[list_key] = [
+                item.strip()
+                for item in re.split(r"[,/]| and ", normalized[list_key])
+                if item.strip()
+            ]
 
-    for int_key in ("group_size", "stop_count"):
+    for int_key in ("group_size", "stop_count", "trip_days"):
         value = normalized.get(int_key)
         if isinstance(value, str):
             match = re.search(r"\d+", value)
@@ -183,11 +195,76 @@ def _normalize_extracted(extracted: dict) -> dict:
     return normalized
 
 
+def _merge_obvious_user_facts(extracted: dict, user_input: str) -> dict:
+    """Deterministic backup for common facts the LLM sometimes forgets to extract."""
+    merged = dict(extracted or {})
+    text = user_input.lower()
+
+    if "trip_days" not in merged:
+        match = re.search(r"\b(\d{1,2})\s*(?:day|days|d)\b", text)
+        if match:
+            merged["trip_days"] = int(match.group(1))
+
+    route_match = re.search(
+        r"\bfrom\s+([a-zA-Z\s]+?)\s+to\s+([a-zA-Z\s]+?)(?:\s+for|\s+with|\s+by|\.|,|$)",
+        user_input,
+        re.IGNORECASE,
+    )
+    if route_match:
+        merged.setdefault("origin", route_match.group(1).strip())
+        merged.setdefault("destination", route_match.group(2).strip())
+
+    if "group_size" not in merged:
+        match = re.search(r"\bfor\s+(\d{1,2})\s*(?:people|persons|travellers|travelers|friends?)\b", text)
+        if match:
+            merged["group_size"] = int(match.group(1))
+
+    if "total_budget" not in merged:
+        match = re.search(r"\b(?:budget|under|around)\s*(?:of\s*)?(?:rs\.?|₹)?\s*(\d[\d,]*)", text)
+        if match:
+            merged["total_budget"] = int(match.group(1).replace(",", ""))
+
+    if "transport_modes" not in merged:
+        modes = [mode for mode in ("flight", "train", "bus", "cab", "car") if re.search(rf"\b{mode}\b", text)]
+        if modes:
+            merged["transport_modes"] = modes
+
+    if "trip_type" not in merged:
+        if re.search(r"\b(urgent|direct|fast|fastest)\b", text):
+            merged["trip_type"] = "urgent"
+        elif re.search(r"\b(explore|scenic|relax|flexible)\b", text):
+            merged["trip_type"] = "explore"
+
+    if "is_vegetarian" not in merged and re.search(r"\b(veg|vegetarian)\b", text):
+        merged["is_vegetarian"] = True
+
+    if not (merged.get("requested_stops") or merged.get("selected_places")):
+        visit_match = re.search(
+            r"\b(?:visit|see|cover)\s+(.+?)(?:\.|,?\s+we\s+prefer|,?\s+i\s+prefer|$)",
+            user_input,
+            re.IGNORECASE,
+        )
+        if visit_match:
+            places = [
+                place.strip(" .")
+                for place in re.split(r",| and ", visit_match.group(1))
+                if place.strip(" .")
+            ]
+            if places:
+                merged["requested_stops"] = places
+
+    return _normalize_extracted(merged)
+
+
 def _has_required_plan_fields(state: dict) -> bool:
     for field in REQUIRED_PLAN_FIELDS:
         value = state.get(field)
         if value in (None, "", [], {}):
             return False
+    if not (state.get("start_date") or state.get("end_date") or state.get("trip_days")):
+        return False
+    if not (state.get("requested_stops") or state.get("selected_places") or state.get("interest_tags")):
+        return False
     return True
 
 
@@ -204,7 +281,7 @@ def _update_collection_stage(state: dict) -> None:
         stage = max(stage, 5)
     if state.get("transport_modes") not in (None, "", [], {}):
         stage = max(stage, 6)
-    if state.get("start_date") or state.get("end_date"):
+    if state.get("start_date") or state.get("end_date") or state.get("trip_days"):
         stage = max(stage, 7)
     state["current_stage"] = stage
 
@@ -269,15 +346,18 @@ async def smart_chat(state: TripState) -> TripState:
 
     user_input = messages[-1]["content"]
 
+    if re.search(r"\b(plan|create|make|build)\b.*\b(trip|itinerary|travel plan)\b", user_input, re.IGNORECASE):
+        state["chat_mode"] = "planning"
+
     # Build conversation history for context
     history_msgs = [SystemMessage(content=SYSTEM_PROMPT)]
 
     # Include collected info so AI knows what's already gathered
     collected = {}
     for field in ["origin", "destination", "trip_type", "transport_modes",
-                   "start_date", "end_date", "total_budget", "group_size",
+                   "start_date", "end_date", "trip_days", "total_budget", "group_size",
                    "hotel_stars", "is_vegetarian", "cuisine_preferences",
-                   "interest_tags", "requested_stops"]:
+                   "interest_tags", "requested_stops", "selected_places"]:
         val = state.get(field)
         if val is not None:
             collected[field] = val
@@ -293,14 +373,30 @@ async def smart_chat(state: TripState) -> TripState:
     prefs_text = user_prefs.get("notes", "") if isinstance(user_prefs, dict) else str(user_prefs)
     if prefs_text:
         history_msgs.append(SystemMessage(
-            content=f"USER PERSONAL PREFERENCES (MUST RESPECT): {prefs_text}"
+            content=f"USER PERSONAL PREFERENCES: {prefs_text}\n"
+                    f"Before relying on these for a new plan, ask for a quick confirmation unless the user already confirmed."
         ))
 
     # Add mode context
     mode = state.get("chat_mode", "chat")
     if mode == "planning":
+        missing = []
+        for label, ok in [
+            ("destination", bool(state.get("destination"))),
+            ("origin", bool(state.get("origin"))),
+            ("places to visit/interests", bool(state.get("requested_stops") or state.get("selected_places") or state.get("interest_tags"))),
+            ("group size", state.get("group_size") not in (None, "", [], {})),
+            ("budget", state.get("total_budget") not in (None, "", [], {})),
+            ("trip type", bool(state.get("trip_type"))),
+            ("transport", bool(state.get("transport_modes"))),
+            ("dates or trip days", bool(state.get("start_date") or state.get("end_date") or state.get("trip_days"))),
+        ]:
+            if not ok:
+                missing.append(label)
         history_msgs.append(SystemMessage(
-            content="The user is in TRIP PLANNING mode. Focus on collecting trip information."
+            content="The user is in TRIP PLANNING mode. Collect only the next missing detail.\n"
+                    f"MISSING DETAILS IN ORDER: {', '.join(missing) if missing else 'none'}.\n"
+                    "If destination is known but places are not chosen, suggest specific places with approximate distances and ask the user to choose."
         ))
 
     # Handle single-agent invocation
@@ -366,13 +462,13 @@ async def smart_chat(state: TripState) -> TripState:
 
         if parsed and "reply" in parsed:
             reply_text = str(parsed["reply"])
-            extracted = _normalize_extracted(parsed.get("extracted", {}))
+            extracted = _merge_obvious_user_facts(parsed.get("extracted", {}), user_input)
             ready = bool(parsed.get("ready_to_plan", False))
             detected_mode = parsed.get("mode", mode)
             user_prefs_updates = parsed.get("user_prefs_updates")
         elif parsed:
             reply_text = raw
-            extracted = _normalize_extracted(parsed.get("extracted", parsed))
+            extracted = _merge_obvious_user_facts(parsed.get("extracted", parsed), user_input)
             ready = bool(parsed.get("ready_to_plan", False))
             detected_mode = parsed.get("mode", mode)
             user_prefs_updates = parsed.get("user_prefs_updates")
@@ -403,7 +499,7 @@ async def smart_chat(state: TripState) -> TripState:
             embedded = re.search(r'"transport_modes?\s*"\s*:\s*"([^"]+)"', raw)
             if embedded:
                 extracted["transport_modes"] = [embedded.group(1)]
-            extracted = _normalize_extracted(extracted)
+            extracted = _merge_obvious_user_facts(extracted, user_input)
 
         # ── Always clean reply text of leaked JSON metadata ──
         cleanup_patterns = [
@@ -424,8 +520,9 @@ async def smart_chat(state: TripState) -> TripState:
 
         # Update state with any newly extracted info
         safe_keys = {"origin", "destination", "trip_type", "stop_count",
-                     "requested_stops", "transport_modes", "start_date",
-                     "end_date", "total_budget", "group_size", "hotel_stars",
+                     "requested_stops", "selected_places", "preferred_place_candidates",
+                     "transport_modes", "start_date",
+                     "end_date", "trip_days", "total_budget", "group_size", "hotel_stars",
                      "is_vegetarian", "cuisine_preferences", "interest_tags",
                      "allow_suggestions"}
         for key, value in extracted.items():
@@ -448,7 +545,7 @@ async def smart_chat(state: TripState) -> TripState:
         # If ready to plan, set stage to trigger agent dispatch. Also trust the
         # collected state if the model extracted all required fields but forgot
         # to set ready_to_plan=true.
-        if ready or _has_required_plan_fields(state):
+        if _has_required_plan_fields(state):
             state["current_stage"] = 8  # Triggers dispatch
             if "activate" not in reply_text.lower() and "everything i need" not in reply_text.lower():
                 reply_text += "\n\n✨ I have everything I need! Let me activate all my AI agents to create your personalized travel plan..."
@@ -567,11 +664,16 @@ async def dispatch_agents(state: TripState) -> TripState:
     overall = AgentProtocol.calculate_overall_confidence(state.get("agent_statuses", {}))
     state["overall_confidence"] = round(overall, 1)
 
-    # Phase 3: Re-research if confidence is too low (max 2 passes)
-    if state.get("research_pass", 1) < 2 and overall < 40:
+    # Phase 3: Re-research if confidence is too low (max 3 passes).
+    # Keep improved results only, so weak retries cannot make the plan worse.
+    if state.get("research_pass", 1) < 3 and overall < 70:
         weak = AgentProtocol.needs_reresearch(state.get("agent_statuses", {}))
         if weak:
             logger.info(f"Low confidence ({overall}%). Re-researching: {weak}")
+            previous_scores = {
+                name: state.get("agent_statuses", {}).get(name, {}).get("confidence", 0)
+                for name in weak
+            }
             for agent_name in weak:
                 if agent_name in agent_map:
                     AgentProtocol.set_status(state, agent_name, "re-researching",
@@ -586,7 +688,12 @@ async def dispatch_agents(state: TripState) -> TripState:
                 if isinstance(item, Exception):
                     continue
                 name, result_key, result = item
-                state[result_key] = result
+                new_score = AgentProtocol.calculate_agent_confidence(result, name)
+                if new_score >= previous_scores.get(name, 0):
+                    state[result_key] = result
+                    AgentProtocol.set_status(state, name, "done",
+                                             f"{name.title()} research improved or confirmed",
+                                             new_score)
 
             # Recalculate confidence
             overall = AgentProtocol.calculate_overall_confidence(state.get("agent_statuses", {}))
@@ -612,6 +719,8 @@ async def build_plan(state: TripState) -> TripState:
             "is_vegetarian": state.get("is_vegetarian"),
             "trip_type": state.get("trip_type"),
             "interest_tags": state.get("interest_tags"),
+            "requested_stops": state.get("requested_stops"),
+            "selected_places": state.get("selected_places"),
             "hotel_stars": state.get("hotel_stars"),
             "user_prefs": state.get("user_prefs", {}),  # Global personalized DOS/DONTS
             "psychology": state.get("psychology_results", {}), # Psychological profile
@@ -772,6 +881,22 @@ Return ONLY valid JSON. No markdown."""
             "role": "assistant",
             "content": f"🎉 Your travel plan is ready! I've created a detailed itinerary from {state.get('origin')} to {state.get('destination')}."
         })
+
+        if state.get("final_plan"):
+            if "user_prefs" not in state or not isinstance(state["user_prefs"], dict):
+                state["user_prefs"] = {}
+            note_parts = [
+                f"Recent trip style: {state.get('trip_type')} trip",
+                f"budget around ₹{state.get('total_budget')}",
+                f"transport: {', '.join(state.get('transport_modes') or [])}",
+            ]
+            chosen_places = state.get("requested_stops") or state.get("selected_places") or state.get("interest_tags") or []
+            if chosen_places:
+                note_parts.append(f"preferred places/interests: {', '.join(map(str, chosen_places))}")
+            note = "; ".join(part for part in note_parts if part and "None" not in part)
+            existing_notes = state["user_prefs"].get("notes", "")
+            if note and note not in existing_notes:
+                state["user_prefs"]["notes"] = f"{existing_notes}\n{note}".strip()
     except Exception as e:
         logger.error(f"Plan generation failed: {e}")
         state["final_plan"] = {
