@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Prevent interactive prompts during apt
 ENV DEBIAN_FRONTEND=noninteractive
@@ -6,8 +6,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 # 1. Install core system dependencies
 RUN apt-get update && apt-get install -y \
     openjdk-21-jdk \
-    python3.10 \
-    python3.10-venv \
+    python3 \
+    python3-venv \
     python3-pip \
     curl \
     wget \
@@ -55,7 +55,10 @@ RUN npm install
 
 # 9. Setup Next.js Frontend
 WORKDIR /app/frontend
-RUN npm install && npm run build
+RUN npm install \
+    && npm run build \
+    && cp -r .next/static .next/standalone/.next/static \
+    && cp -r public .next/standalone/public
 
 # 10. Configure Entrypoint
 WORKDIR /app

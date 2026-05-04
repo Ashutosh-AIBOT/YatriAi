@@ -42,4 +42,4 @@ export NEXT_PUBLIC_GATEWAY_URL="/api/v1"
 export NEXT_PUBLIC_NOTIFICATION_URL=""
 
 # Robust frontend start that will catch crashes
-npm start || echo "CRITICAL: Frontend crashed. Check logs."
+node .next/standalone/server.js || echo "CRITICAL: Frontend crashed. Check logs."

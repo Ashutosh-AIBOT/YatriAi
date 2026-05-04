@@ -286,15 +286,27 @@ async def chat(req: ChatRequest):
         if result.get("final_plan"):
             ui_type = "plan"
             ui_data = result["final_plan"]
+        elif result.get("transport_results") and not isinstance(result["transport_results"], str):
+            ui_type = "transport"
+            ui_data = result["transport_results"]
         elif result.get("cab_results") and not isinstance(result["cab_results"], str):
             ui_type = "cab"
             ui_data = result["cab_results"]
         elif result.get("hotel_results") and not isinstance(result["hotel_results"], str):
             ui_type = "hotel"
             ui_data = result["hotel_results"]
+        elif result.get("food_results") and not isinstance(result["food_results"], str):
+            ui_type = "food"
+            ui_data = result["food_results"]
+        elif result.get("places_results") and not isinstance(result["places_results"], str):
+            ui_type = "places"
+            ui_data = result["places_results"]
         elif result.get("map_results") and not isinstance(result["map_results"], str):
             ui_type = "map"
             ui_data = result["map_results"]
+        elif result.get("psychology_results") and not isinstance(result["psychology_results"], str):
+            ui_type = "psychology"
+            ui_data = result["psychology_results"]
 
         return ChatResponse(
             trip_id=result.get("trip_id", req.trip_id),
@@ -409,6 +421,27 @@ async def chat_stream(req: ChatRequest):
             if result.get("final_plan"):
                 ui_type = "plan"
                 ui_data = result["final_plan"]
+            elif result.get("transport_results") and not isinstance(result["transport_results"], str):
+                ui_type = "transport"
+                ui_data = result["transport_results"]
+            elif result.get("cab_results") and not isinstance(result["cab_results"], str):
+                ui_type = "cab"
+                ui_data = result["cab_results"]
+            elif result.get("hotel_results") and not isinstance(result["hotel_results"], str):
+                ui_type = "hotel"
+                ui_data = result["hotel_results"]
+            elif result.get("food_results") and not isinstance(result["food_results"], str):
+                ui_type = "food"
+                ui_data = result["food_results"]
+            elif result.get("places_results") and not isinstance(result["places_results"], str):
+                ui_type = "places"
+                ui_data = result["places_results"]
+            elif result.get("map_results") and not isinstance(result["map_results"], str):
+                ui_type = "map"
+                ui_data = result["map_results"]
+            elif result.get("psychology_results") and not isinstance(result["psychology_results"], str):
+                ui_type = "psychology"
+                ui_data = result["psychology_results"]
 
             yield _sse_event("result", {
                 "trip_id": result.get("trip_id", ""),

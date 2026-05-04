@@ -20,6 +20,15 @@ from ..config import settings
 
 logger = logging.getLogger(__name__)
 
+REQUIRED_PLAN_FIELDS = {
+    "origin",
+    "destination",
+    "group_size",
+    "total_budget",
+    "trip_type",
+    "transport_modes",
+}
+
 llm = ChatGroq(
     model="llama-3.1-8b-instant",
     temperature=0.4,
@@ -93,6 +102,158 @@ SINGLE_AGENT_PROMPT = """You are Yatri AI. The user wants to use the {agent_name
 Respond helpfully about {agent_topic}. If you need more info, ask for it.
 Respond with valid JSON: {{"reply": "your message", "extracted": {{}}, "ready_to_plan": false, "mode": "chat"}}
 """
+
+
+def _loads_json_lenient(text: str):
+    """Parse JSON with a small cleanup pass for common LLM formatting mistakes."""
+    cleaned = text.strip()
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+    cleaned = re.sub(r",\s*([}\]])", r"\1", cleaned)
+    return json.loads(cleaned)
+
+
+def _extract_first_json(text: str, expected_type=dict):
+    """
+    Return the first complete JSON object/array from an LLM response.
+    Regex brace matching breaks on nested objects, which is exactly what the
+    chat and plan prompts ask the model to produce.
+    """
+    if not text:
+        return None
+
+    try:
+        parsed = _loads_json_lenient(text)
+        if isinstance(parsed, expected_type):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    decoder = json.JSONDecoder()
+    starts = "{[" if expected_type is object else ("{" if expected_type is dict else "[")
+    for idx, char in enumerate(text):
+        if char not in starts:
+            continue
+        try:
+            parsed, _ = decoder.raw_decode(text[idx:])
+            if isinstance(parsed, expected_type):
+                return parsed
+        except json.JSONDecodeError:
+            # Try a bounded cleanup from this opening bracket to the last
+            # matching closing bracket. This catches trailing commas in objects.
+            close = "}" if char == "{" else "]"
+            end = text.rfind(close)
+            if end > idx:
+                try:
+                    parsed = _loads_json_lenient(text[idx:end + 1])
+                    if isinstance(parsed, expected_type):
+                        return parsed
+                except json.JSONDecodeError:
+                    pass
+    return None
+
+
+def _normalize_extracted(extracted: dict) -> dict:
+    """Coerce common LLM field shapes into the state shape the graph expects."""
+    if not isinstance(extracted, dict):
+        return {}
+
+    normalized = dict(extracted)
+
+    if isinstance(normalized.get("transport_modes"), str):
+        normalized["transport_modes"] = [
+            mode.strip()
+            for mode in re.split(r"[,/]| and ", normalized["transport_modes"])
+            if mode.strip()
+        ]
+
+    for int_key in ("group_size", "stop_count"):
+        value = normalized.get(int_key)
+        if isinstance(value, str):
+            match = re.search(r"\d+", value)
+            if match:
+                normalized[int_key] = int(match.group())
+
+    budget = normalized.get("total_budget")
+    if isinstance(budget, str):
+        match = re.search(r"\d[\d,]*", budget)
+        if match:
+            normalized["total_budget"] = int(match.group().replace(",", ""))
+
+    return normalized
+
+
+def _has_required_plan_fields(state: dict) -> bool:
+    for field in REQUIRED_PLAN_FIELDS:
+        value = state.get(field)
+        if value in (None, "", [], {}):
+            return False
+    return True
+
+
+def _update_collection_stage(state: dict) -> None:
+    """Keep the legacy stage number useful for tests and the frontend."""
+    stage = state.get("current_stage", 1)
+    if state.get("origin") or state.get("destination"):
+        stage = max(stage, 2)
+    if state.get("group_size") not in (None, "", [], {}):
+        stage = max(stage, 3)
+    if state.get("total_budget") not in (None, "", [], {}):
+        stage = max(stage, 4)
+    if state.get("trip_type") not in (None, "", [], {}):
+        stage = max(stage, 5)
+    if state.get("transport_modes") not in (None, "", [], {}):
+        stage = max(stage, 6)
+    if state.get("start_date") or state.get("end_date"):
+        stage = max(stage, 7)
+    state["current_stage"] = stage
+
+
+def _summarize_agent_result(agent_name: str, result: dict, confidence: float) -> str:
+    """Create a useful chat message for single-agent runs."""
+    if not isinstance(result, dict):
+        return f"{agent_name.title()} agent finished. Confidence: {confidence}%."
+
+    if result.get("status") == "error":
+        return f"{agent_name.title()} agent could not complete: {result.get('error', 'unknown error')}"
+
+    if agent_name == "psychology" and result.get("profile"):
+        p = result["profile"]
+        predictions = ", ".join(p.get("predictive_preferences", []) or [])
+        return (
+            "**Psychology Agent** finished.\n\n"
+            f"**Mood:** {p.get('mood', 'N/A')}\n"
+            f"**Motivation:** {p.get('motivation', 'N/A')}\n"
+            f"**Predictions:** {predictions or 'N/A'}\n\n"
+            f"Confidence: {confidence}%"
+        )
+
+    if agent_name == "wanderlust" and result.get("wanderlust_message"):
+        return f"*Wanderlust says:* {result['wanderlust_message']}"
+
+    labels = {
+        "transport": ("routes", "route options"),
+        "cabs": ("options", "cab options"),
+        "hotels": ("hotels", "hotel options"),
+        "food": ("restaurants", "food places"),
+        "places": ("places", "places"),
+        "maps": ("route", "route details"),
+    }
+    key, label = labels.get(agent_name, ("data", "results"))
+    data = result.get(key)
+
+    if isinstance(data, list):
+        count = len(data)
+        sample = data[0] if data else None
+        title = sample.get("name") or sample.get("provider") or sample.get("mode") if isinstance(sample, dict) else None
+        suffix = f" Top match: {title}." if title else ""
+        return f"**{agent_name.title()} Agent** found {count} {label}.{suffix}\n\nConfidence: {confidence}%"
+
+    if isinstance(data, dict) and data:
+        return f"**{agent_name.title()} Agent** prepared {label} for your trip.\n\nConfidence: {confidence}%"
+
+    note = result.get("note") or result.get("error") or "Live data may be unavailable, so fallback data was used where possible."
+    return f"**{agent_name.title()} Agent** finished, but had limited data. {note}\n\nConfidence: {confidence}%"
 
 
 async def smart_chat(state: TripState) -> TripState:
@@ -201,28 +362,18 @@ async def smart_chat(state: TripState) -> TripState:
         detected_mode = mode
         user_prefs_updates = None
 
-        # Try to find JSON with "reply" key (proper response)
-        json_match = re.search(r'\{[^{}]*"reply"[^{}]*\}', raw, re.DOTALL)
-        if not json_match:
-            # Fallback: greedy match for any JSON
-            json_match = re.search(r'\{.*\}', raw, re.DOTALL)
-        
-        if json_match:
-            try:
-                parsed = json.loads(json_match.group())
-            except json.JSONDecodeError:
-                # Try to fix common JSON issues (trailing commas, etc)
-                try:
-                    cleaned_json = re.sub(r',\s*}', '}', json_match.group())
-                    cleaned_json = re.sub(r',\s*]', ']', cleaned_json)
-                    parsed = json.loads(cleaned_json)
-                except json.JSONDecodeError:
-                    parsed = None
+        parsed = _extract_first_json(raw, dict)
 
         if parsed and "reply" in parsed:
-            reply_text = parsed["reply"]
-            extracted = parsed.get("extracted", {})
-            ready = parsed.get("ready_to_plan", False)
+            reply_text = str(parsed["reply"])
+            extracted = _normalize_extracted(parsed.get("extracted", {}))
+            ready = bool(parsed.get("ready_to_plan", False))
+            detected_mode = parsed.get("mode", mode)
+            user_prefs_updates = parsed.get("user_prefs_updates")
+        elif parsed:
+            reply_text = raw
+            extracted = _normalize_extracted(parsed.get("extracted", parsed))
+            ready = bool(parsed.get("ready_to_plan", False))
             detected_mode = parsed.get("mode", mode)
             user_prefs_updates = parsed.get("user_prefs_updates")
         else:
@@ -252,6 +403,7 @@ async def smart_chat(state: TripState) -> TripState:
             embedded = re.search(r'"transport_modes?\s*"\s*:\s*"([^"]+)"', raw)
             if embedded:
                 extracted["transport_modes"] = [embedded.group(1)]
+            extracted = _normalize_extracted(extracted)
 
         # ── Always clean reply text of leaked JSON metadata ──
         cleanup_patterns = [
@@ -279,6 +431,8 @@ async def smart_chat(state: TripState) -> TripState:
         for key, value in extracted.items():
             if key in safe_keys and value is not None:
                 state[key] = value
+
+        _update_collection_stage(state)
                 
         if user_prefs_updates and isinstance(user_prefs_updates, str) and user_prefs_updates.strip():
             if "user_prefs" not in state or not isinstance(state["user_prefs"], dict):
@@ -291,10 +445,13 @@ async def smart_chat(state: TripState) -> TripState:
         if detected_mode == "planning":
             state["chat_mode"] = "planning"
 
-        # If ready to plan, set stage to trigger agent dispatch
-        if ready:
+        # If ready to plan, set stage to trigger agent dispatch. Also trust the
+        # collected state if the model extracted all required fields but forgot
+        # to set ready_to_plan=true.
+        if ready or _has_required_plan_fields(state):
             state["current_stage"] = 8  # Triggers dispatch
-            reply_text += "\n\n✨ I have everything I need! Let me activate all my AI agents to create your personalized travel plan..."
+            if "activate" not in reply_text.lower() and "everything i need" not in reply_text.lower():
+                reply_text += "\n\n✨ I have everything I need! Let me activate all my AI agents to create your personalized travel plan..."
 
         state.setdefault("messages", []).append({
             "role": "assistant",
@@ -594,9 +751,8 @@ Return ONLY valid JSON:
 Return ONLY valid JSON. No markdown."""
 
         response = await llm.ainvoke([HumanMessage(content=plan_prompt)])
-        match = re.search(r'\{.*\}', response.content, re.DOTALL)
-        if match:
-            plan = json.loads(match.group())
+        plan = _extract_first_json(response.content, dict)
+        if plan:
             state["final_plan"] = plan
 
             # Store RAGAS result separately for frontend display
@@ -665,20 +821,10 @@ async def run_single_agent(state: TripState) -> TripState:
                                  f"{target.title()} search complete", confidence)
         state[result_key] = result
         
-        # Append structured output for the user
-        if target == "psychology" and result.get("profile"):
-            p = result["profile"]
-            msg = f"🧠 **Psychological Profile Updated**\n\n" \
-                  f"**Mood:** {p.get('mood', 'N/A')}\n" \
-                  f"**Motivation:** {p.get('motivation', 'N/A')}\n" \
-                  f"**Predictions:** {', '.join(p.get('predictive_preferences', []))}\n" \
-                  f"**Hooks:** {', '.join(p.get('manipulation_hooks', []))}\n\n" \
-                  f"*Confidence:* {confidence}%"
-            state.setdefault("messages", []).append({"role": "assistant", "content": msg})
-        elif target == "wanderlust" and result.get("wanderlust_message"):
-            state.setdefault("messages", []).append({"role": "assistant", "content": f"💫 *Wanderlust says:* {result['wanderlust_message']}"})
-        else:
-            state.setdefault("messages", []).append({"role": "assistant", "content": f"✅ **{target.title()} Agent** finished processing successfully. Results have been saved to your profile."})
+        state.setdefault("messages", []).append({
+            "role": "assistant",
+            "content": _summarize_agent_result(target, result, confidence),
+        })
             
     except Exception as e:
         logger.error(f"Single agent {target} failed: {e}")
