@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class AgentProtocol:
     """Mixin that provides A2A communication capabilities to any agent."""
 
-    AGENT_NAMES = ["transport", "cabs", "hotels", "food", "places", "maps"]
+    AGENT_NAMES = ["transport", "cabs", "hotels", "food", "places", "maps", "psychology"]
     RESULT_KEYS = {
         "transport": "transport_results",
         "cabs": "cab_results",
@@ -24,6 +24,7 @@ class AgentProtocol:
         "food": "food_results",
         "places": "places_results",
         "maps": "map_results",
+        "psychology": "psychology_results",
     }
 
     @staticmethod

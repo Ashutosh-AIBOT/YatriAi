@@ -54,6 +54,10 @@ class TripState(TypedDict):
     wanderlust_intensity: Optional[int]      # 0-100 intensity slider
     wanderlust_results: Optional[Dict]       # Latest motivational message
 
+    # ─── Psychology Profiling Agent ───
+    psychology_enabled: Optional[bool]        # Toggle on/off (default True)
+    psychology_results: Optional[Dict]        # Latest psychological profile
+
     # Agent results
     transport_results: Optional[Dict]
     cab_results: Optional[Dict]

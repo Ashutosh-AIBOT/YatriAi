@@ -120,6 +120,7 @@ def _init_state(req: ChatRequest) -> dict:
         "wanderlust_intensity": 50,
         "wanderlust_results": None,
         "psychology_enabled": True,
+        "psychology_results": None,
     }
 
 def _get_collected_info(state: dict) -> dict:
@@ -421,7 +422,7 @@ async def chat_stream(req: ChatRequest):
                 "agent_statuses": agent_statuses,
                 "overall_confidence": result.get("overall_confidence"),
                 "ragas_result": result.get("ragas_result"),
-                "wanderlust_message": result.get("wanderlust_results", {}).get("wanderlust_message"),
+                "wanderlust_message": (result.get("wanderlust_results") or {}).get("wanderlust_message"),
                 "user_prefs": result.get("user_prefs"),
             })
 
